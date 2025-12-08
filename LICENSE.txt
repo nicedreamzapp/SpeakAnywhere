@@ -1,0 +1,87 @@
+================================================================================
+                         SPEAK ANYWHERE LICENSE AGREEMENT
+================================================================================
+
+Copyright (c) 2024 Nice Dreamz LLC
+All Rights Reserved.
+
+PROPRIETARY SOFTWARE LICENSE
+
+This software and associated documentation files ("Speak Anywhere") is the
+proprietary property of Nice Dreamz LLC.
+
+TERMS AND CONDITIONS:
+
+1. LICENSE GRANT
+   Nice Dreamz LLC grants you a limited, non-exclusive, non-transferable license
+   to use this software for personal or internal business purposes only.
+
+2. RESTRICTIONS
+   You may NOT:
+   - Copy, modify, or distribute this software
+   - Reverse engineer, decompile, or disassemble this software
+   - Rent, lease, or lend this software to third parties
+   - Use this software for commercial redistribution
+   - Remove or alter any proprietary notices or labels
+
+3. OWNERSHIP
+   This software is licensed, not sold. Nice Dreamz LLC retains all rights,
+   title, and interest in and to the software, including all intellectual
+   property rights.
+
+4. DISCLAIMER OF WARRANTIES
+   THIS SOFTWARE IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+   IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+   FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+
+5. LIMITATION OF LIABILITY
+   IN NO EVENT SHALL NICE DREAMZ LLC BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+   LIABILITY ARISING FROM THE USE OF THIS SOFTWARE.
+
+6. TERMINATION
+   This license is effective until terminated. It will terminate automatically
+   if you fail to comply with any term of this agreement.
+
+================================================================================
+                              CONTACT INFORMATION
+================================================================================
+
+Company:    Nice Dreamz LLC
+Author:     Matt Macosko
+Email:      info@nicedreamz.wholesale.com
+
+================================================================================
+                              SOFTWARE DESCRIPTION
+================================================================================
+
+SPEAK ANYWHERE v1.0.0
+
+A voice-powered productivity application that provides:
+
+  - VOICE DICTATION: Tap the microphone and speak - your words are typed
+    automatically wherever your cursor is. Perfect for writing emails,
+    documents, messages, and more without touching the keyboard.
+
+  - TEXT-TO-SPEECH: Copy any text to your clipboard, then tap "Speak Clipboard"
+    to have it read aloud using natural-sounding Microsoft neural voices.
+    Great for proofreading, accessibility, or multitasking.
+
+  - SPEED CONTROL: Adjust playback speed from 0.5x to 2.0x for comfortable
+    listening.
+
+  - DEVICE SELECTION: Choose your preferred microphone and speaker from the
+    dropdown menus.
+
+REQUIREMENTS:
+  - Windows 10 or Windows 11
+  - Microphone (built-in or USB)
+  - Speakers or headphones
+
+HOW TO USE:
+  1. Run SpeakAnywhere.exe
+  2. Wait for the splash screen to finish loading
+  3. Tap the microphone icon to start dictating
+  4. Copy text and tap "Speak Clipboard" to hear it read aloud
+  5. Use the X button to close the app
+
+================================================================================

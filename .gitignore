@@ -1,0 +1,43 @@
+# Build artifacts
+build/
+dist/
+*.spec
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyo
+
+# Virtual environments
+venv/
+env/
+.env
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+.claude/
+
+# Temp files
+*.tmp
+*.temp
+tts_temp.mp3
+nul
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Large model files (users should download separately)
+vosk-model-*/
+_resources/vosk-model-*/
+
+# Old/duplicate files in root (these are now in _resources)
+grok-video-*.mp4
+splash_audio.mp3
+SpeakAnywhere.ico
+SpeakAnywhere.bat

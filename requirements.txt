@@ -1,0 +1,11 @@
+pyperclip
+pillow
+pyautogui
+pyaudio
+vosk
+opencv-python
+pygame
+edge-tts
+numpy<2.0
+winshell
+pywin32
