@@ -19,7 +19,7 @@ Description:
     - Voice dictation: Speak and have your words typed automatically
     - Text-to-speech: Copy text and have it read aloud with natural voices
     - Offline speech recognition using Vosk
-    - Neural text-to-speech using Microsoft Edge TTS
+    - Offline neural text-to-speech using Piper TTS
 
 Requirements:
     - Windows 10/11
@@ -42,24 +42,37 @@ if getattr(sys, 'frozen', False):
 else:
     _APP_DIR = os.path.dirname(os.path.abspath(__file__))
 
-# Show loading window IMMEDIATELY
+# Show loading window IMMEDIATELY - before ANYTHING else
 _loading_root = tk.Tk()
-_loading_root.withdraw()  # Hide first
+_loading_root.withdraw()
 _loading_root.overrideredirect(True)
 _loading_root.configure(bg='#1a1a2e')
 
-_load_w, _load_h = 280, 100
+_load_w, _load_h = 320, 140
 _load_x = (_loading_root.winfo_screenwidth() - _load_w) // 2
 _load_y = (_loading_root.winfo_screenheight() - _load_h) // 2
 _loading_root.geometry(f"{_load_w}x{_load_h}+{_load_x}+{_load_y}")
 
 _title_lbl = tk.Label(_loading_root, text="Speak Anywhere", bg='#1a1a2e', fg='#00d4ff',
-                      font=("Segoe UI", 16, "bold"))
+                      font=("Segoe UI", 18, "bold"))
 _title_lbl.pack(pady=(20, 5))
 
-_status_lbl = tk.Label(_loading_root, text="Loading, please wait...", bg='#1a1a2e', fg='#9ca3af',
+_status_lbl = tk.Label(_loading_root, text="Starting up...", bg='#1a1a2e', fg='#9ca3af',
                        font=("Segoe UI", 10))
 _status_lbl.pack(pady=5)
+
+# Progress bar frame
+_progress_frame = tk.Frame(_loading_root, bg='#2d2d44', height=8, width=260)
+_progress_frame.pack(pady=10)
+_progress_frame.pack_propagate(False)
+
+_progress_bar = tk.Frame(_progress_frame, bg='#00d4ff', height=8, width=0)
+_progress_bar.place(x=0, y=0)
+
+def _update_progress(percent, text):
+    _progress_bar.config(width=int(260 * percent / 100))
+    _status_lbl.config(text=text)
+    _loading_root.update()
 
 # Force window to appear NOW
 _loading_root.deiconify()
@@ -69,24 +82,30 @@ _loading_root.focus_force()
 _loading_root.update_idletasks()
 _loading_root.update()
 
-# Small delay to ensure window renders before heavy imports
+# Now do the heavy imports with progress updates
 import time as _time
-_time.sleep(0.1)
+_time.sleep(0.05)
 
-# Now do the heavy imports
+_update_progress(10, "Loading core modules...")
 import pyperclip
 from tkinter import Canvas
 import threading
 from PIL import Image, ImageTk, ImageDraw, ImageFilter
 import pyautogui
 import time
+
+_update_progress(20, "Loading audio system...")
 import pyaudio
-_status_lbl.config(text="Loading speech recognition...")
-_loading_root.update()
+
+_update_progress(30, "Loading speech recognition...")
 from vosk import Model, KaldiRecognizer
 import json
+
+_update_progress(50, "Loading video system...")
 import cv2
 import pygame
+
+_update_progress(60, "Loading audio playback...")
 import wave
 import sounddevice as sd
 import numpy as np
@@ -693,20 +712,6 @@ def stop_speaking():
     speaking_thread = None
     update_speak_button()
 
-def update_speak_button():
-    try:
-        if is_speaking:
-            # Green stop icon when speaking
-            speak_label_icon.config(text="🛑", fg='#00ff88')
-            speak_label.config(text="Tap to stop", fg='#ff6b6b')
-        else:
-            # Cyan speaker icon
-            speak_label_icon.config(text="🔊", fg='#00d4ff')
-            speak_label.config(text="Copy text,\ntap to read", fg='#00d4ff')
-        root.update()
-    except:
-        pass
-
 def dictation_loop():
     global dictation_active, stream
     try:
@@ -814,15 +819,6 @@ def toggle_dictation(event=None):
             except:
                 pass
             stream = None
-
-def update_mic_button_early(active):
-    # This is a placeholder - will be replaced after UI is built
-    pass
-
-def set_speed(val):
-    global current_speed
-    current_speed = float(val)
-    speed_value.config(text=f"{current_speed:.1f}x")
 
 # Drag window
 drag_data = {"x": 0, "y": 0}
