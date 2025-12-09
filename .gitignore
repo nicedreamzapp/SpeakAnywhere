@@ -1,7 +1,8 @@
 # Build artifacts
 build/
 dist/
-*.spec
+# Keep speak_anywhere.spec but ignore others
+!speak_anywhere.spec
 
 # Python cache
 __pycache__/
