@@ -5,7 +5,7 @@ pyaudio
 vosk
 opencv-python
 pygame
-edge-tts
+piper-tts
 numpy<2.0
 winshell
 pywin32

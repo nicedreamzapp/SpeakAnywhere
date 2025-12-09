@@ -29,23 +29,65 @@ Requirements:
 ================================================================================
 """
 
-import pyperclip
 import tkinter as tk
-from tkinter import Canvas
-import threading
 import os
 import sys
+
+# ============================================================================
+# IMMEDIATE LOADING SCREEN - Shows instantly before any heavy imports
+# ============================================================================
+# Get the application directory early
+if getattr(sys, 'frozen', False):
+    _APP_DIR = os.path.dirname(sys.executable)
+else:
+    _APP_DIR = os.path.dirname(os.path.abspath(__file__))
+
+# Show loading window IMMEDIATELY
+_loading_root = tk.Tk()
+_loading_root.withdraw()  # Hide first
+_loading_root.overrideredirect(True)
+_loading_root.configure(bg='#1a1a2e')
+
+_load_w, _load_h = 280, 100
+_load_x = (_loading_root.winfo_screenwidth() - _load_w) // 2
+_load_y = (_loading_root.winfo_screenheight() - _load_h) // 2
+_loading_root.geometry(f"{_load_w}x{_load_h}+{_load_x}+{_load_y}")
+
+_title_lbl = tk.Label(_loading_root, text="Speak Anywhere", bg='#1a1a2e', fg='#00d4ff',
+                      font=("Segoe UI", 16, "bold"))
+_title_lbl.pack(pady=(20, 5))
+
+_status_lbl = tk.Label(_loading_root, text="Loading, please wait...", bg='#1a1a2e', fg='#9ca3af',
+                       font=("Segoe UI", 10))
+_status_lbl.pack(pady=5)
+
+# Force window to appear NOW
+_loading_root.deiconify()
+_loading_root.attributes('-topmost', True)
+_loading_root.lift()
+_loading_root.focus_force()
+_loading_root.update_idletasks()
+_loading_root.update()
+
+# Small delay to ensure window renders before heavy imports
+import time as _time
+_time.sleep(0.1)
+
+# Now do the heavy imports
+import pyperclip
+from tkinter import Canvas
+import threading
 from PIL import Image, ImageTk, ImageDraw, ImageFilter
 import pyautogui
 import time
 import pyaudio
+_status_lbl.config(text="Loading speech recognition...")
+_loading_root.update()
 from vosk import Model, KaldiRecognizer
 import json
 import cv2
 import pygame
-import asyncio
-import edge_tts
-import tempfile
+import wave
 
 # ============================================================================
 # APPLICATION INFO
@@ -63,25 +105,50 @@ APP_COPYRIGHT = "Copyright (c) 2024 Nice Dreamz LLC. All Rights Reserved."
 FORCE_MICROPHONE_INDEX = None
 
 # Get the application directory (works for both script and PyInstaller exe)
-if getattr(sys, 'frozen', False):
-    # Running as compiled executable
-    APP_DIR = os.path.dirname(sys.executable)
-else:
-    # Running as script
-    APP_DIR = os.path.dirname(os.path.abspath(__file__))
+# Already determined earlier for loading screen
+APP_DIR = _APP_DIR
 
 # Resources folder (hidden from user)
 RESOURCES_DIR = os.path.join(APP_DIR, "_resources")
 
+# Config file location - use AppData so it persists even if app is moved/run from USB
+def get_config_path():
+    """Get config file path in user's AppData folder (persists across app locations)"""
+    appdata = os.environ.get('APPDATA', os.path.expanduser('~'))
+    config_dir = os.path.join(appdata, 'SpeakAnywhere')
+    if not os.path.exists(config_dir):
+        try:
+            os.makedirs(config_dir)
+        except:
+            pass
+    return os.path.join(config_dir, 'config.ini')
+
+CONFIG_FILE = get_config_path()
+
+def is_first_run():
+    """Check if this is the first time running the app"""
+    return not os.path.exists(CONFIG_FILE)
+
+def save_first_run_complete():
+    """Mark that first run setup is complete"""
+    try:
+        with open(CONFIG_FILE, 'w') as f:
+            f.write("setup_complete=true\n")
+    except:
+        pass
+
 VIDEO_FILE = os.path.join(RESOURCES_DIR, "splash_video.mp4")
 MODEL_PATH = os.path.join(RESOURCES_DIR, "vosk-model-small-en-us-0.15")
-# Neural voice options: en-US-GuyNeural (male), en-US-JennyNeural (female), en-US-AriaNeural (female)
-NEURAL_VOICE = "en-US-GuyNeural"
+# Piper TTS voice model (offline neural voice - HFC Male, natural casual voice)
+PIPER_MODEL_PATH = os.path.join(RESOURCES_DIR, "piper", "en_US-hfc_male-medium.onnx")
 # ============================================================================
 
 # ============================================================================
 # VIDEO SPLASH SCREEN WITH AUDIO
 # ============================================================================
+# Close the loading screen, switch to video splash
+_loading_root.destroy()
+
 splash = tk.Tk()
 splash.overrideredirect(True)
 splash.attributes('-topmost', True)
@@ -175,6 +242,12 @@ if not model_loaded[0]:
         time.sleep(0.01)
 
 model = model[0]
+
+# Pre-load Piper TTS voice during splash to avoid delay on first use
+loading_text.config(text="Loading voice...")
+splash.update()
+from piper import PiperVoice
+_piper_voice = PiperVoice.load(PIPER_MODEL_PATH)
 
 # ============================================================================
 # SETUP DIALOG - First run options
@@ -305,16 +378,21 @@ def create_shortcuts(desktop=False, startmenu=False):
     except Exception as e:
         print(f"Could not create shortcut: {e}")
 
-# Show setup dialog
-setup_result = show_setup_dialog()
+# Only show setup dialog on FIRST RUN
+if is_first_run():
+    setup_result = show_setup_dialog()
 
-# Create shortcuts if requested
-create_shortcuts(setup_result.get('desktop', False), setup_result.get('startmenu', False))
+    # Create shortcuts if requested
+    create_shortcuts(setup_result.get('desktop', False), setup_result.get('startmenu', False))
 
-# Exit if user doesn't want to launch now
-if not setup_result.get('launch', True):
-    splash.destroy()
-    sys.exit(0)
+    # Save that setup is complete (never show dialog again)
+    save_first_run_complete()
+
+    # Exit if user doesn't want to launch now
+    if not setup_result.get('launch', True):
+        splash.destroy()
+        sys.exit(0)
+# Otherwise just launch immediately (no questions, just video and go)
 
 # ============================================================================
 # SETUP
@@ -328,35 +406,20 @@ stop_playback = False
 last_click_time = 0
 DEBOUNCE_SECONDS = 0.3
 current_speed = 1.0
-temp_audio_file = os.path.join(APP_DIR, "tts_temp.mp3")
+temp_audio_file = os.path.join(APP_DIR, "tts_temp.wav")
 
 pa = pyaudio.PyAudio()
 SAMPLE_RATE = 16000
 CHUNK_SIZE = 1024
 TIMEOUT_SECONDS = 10
 
-def find_best_microphone():
-    for i in range(pa.get_device_count()):
-        try:
-            info = pa.get_device_info_by_index(i)
-            if info.get('maxInputChannels', 0) > 0:
-                name = info.get('name', '').lower()
-                if 'usb' in name or 'external' in name or 'headset' in name:
-                    return i
-        except:
-            pass
-    return 0
+# Microphone index will be set after device detection below
 
-MICROPHONE_INDEX = FORCE_MICROPHONE_INDEX if FORCE_MICROPHONE_INDEX is not None else find_best_microphone()
-try:
-    selected_mic_name = pa.get_device_info_by_index(MICROPHONE_INDEX)['name']
-except:
-    selected_mic_name = "Default"
-
-# Get available microphones - show all real input devices
+# Get available microphones - show only real physical microphones
 def get_input_devices():
     devices = []
-    seen_names = set()
+    seen_simple_names = set()
+
     for i in range(pa.get_device_count()):
         try:
             info = pa.get_device_info_by_index(i)
@@ -364,30 +427,33 @@ def get_input_devices():
                 name = info['name']
                 name_lower = name.lower()
 
-                # ONLY skip obvious virtual/fake devices
-                skip = False
-                skip_words = ['mapper', 'virtual', 'stereo mix', 'what u hear',
-                             'loopback', 'voicemeeter', 'cable', 'vb-audio']
-                for word in skip_words:
-                    if word in name_lower:
-                        skip = True
-                        break
-                if skip:
+                # Skip system/virtual devices
+                if 'primary sound' in name_lower:
+                    continue
+                if 'stereo mix' in name_lower or 'what u hear' in name_lower:
+                    continue
+                if 'loopback' in name_lower:
+                    continue
+                # Skip virtual/fake devices
+                if 'camo' in name_lower:  # Camo virtual webcam
+                    continue
+                if '@system32' in name_lower:  # Bluetooth placeholder
+                    continue
+                if 'hands-free' in name_lower:  # Bluetooth audio gateway
                     continue
 
-                # Dedupe by simplified name
-                simple = name.split('(')[0].strip().lower()[:25]
-                if simple in seen_names:
+                # Create a simple name for deduplication (remove host API suffix)
+                simple_name = name.split('(')[0].strip().lower()[:20]
+                if simple_name in seen_simple_names:
                     continue
-                seen_names.add(simple)
+                seen_simple_names.add(simple_name)
 
-                # Clean up the display name
-                display = name[:35]
-                devices.append((i, display))
+                # Truncate display name if needed
+                display_name = name if len(name) <= 40 else name[:37] + "..."
+                devices.append((i, display_name))
         except:
             pass
 
-    # If nothing found, add system default
     if not devices:
         devices.append((0, "Default Microphone"))
     return devices
@@ -395,7 +461,8 @@ def get_input_devices():
 # Get available speakers - show all real output devices
 def get_output_devices():
     devices = []
-    seen_names = set()
+    seen_simple_names = set()
+
     for i in range(pa.get_device_count()):
         try:
             info = pa.get_device_info_by_index(i)
@@ -403,35 +470,49 @@ def get_output_devices():
                 name = info['name']
                 name_lower = name.lower()
 
-                # ONLY skip obvious virtual/fake devices
-                skip = False
-                skip_words = ['mapper', 'virtual', 'loopback', 'voicemeeter', 'cable', 'vb-audio']
-                for word in skip_words:
-                    if word in name_lower:
-                        skip = True
-                        break
-                if skip:
+                # Skip system devices
+                if 'primary sound' in name_lower:
+                    continue
+                if 'loopback' in name_lower:
                     continue
 
-                # Dedupe by simplified name
-                simple = name.split('(')[0].strip().lower()[:25]
-                if simple in seen_names:
+                # Create a simple name for deduplication
+                simple_name = name.split('(')[0].strip().lower()[:20]
+                if simple_name in seen_simple_names:
                     continue
-                seen_names.add(simple)
+                seen_simple_names.add(simple_name)
 
-                # Clean up display name
-                display = name[:35]
-                devices.append((i, display))
+                # Truncate display name if needed
+                display_name = name if len(name) <= 40 else name[:37] + "..."
+                devices.append((i, display_name))
         except:
             pass
 
-    # If nothing found, add default
     if not devices:
         devices.append((-1, "Default Speakers"))
     return devices
 
 input_devices = get_input_devices()
 output_devices = get_output_devices()
+
+# Auto-select best microphone (prefer Realtek/built-in, then USB/external)
+def auto_select_best_mic():
+    # First try to find Realtek (laptop built-in mic)
+    for idx, name in input_devices:
+        name_lower = name.lower()
+        if 'realtek' in name_lower and 'mic' in name_lower:
+            return idx, name
+    # Then try USB or external microphones
+    for idx, name in input_devices:
+        name_lower = name.lower()
+        if 'usb' in name_lower or 'external' in name_lower or 'headset' in name_lower:
+            return idx, name
+    # Otherwise use first available
+    if input_devices:
+        return input_devices[0]
+    return (0, "Default")
+
+MICROPHONE_INDEX, selected_mic_name = auto_select_best_mic()
 
 pyautogui.FAILSAFE = False
 pyautogui.PAUSE = 0.01
@@ -499,14 +580,31 @@ def create_mic_button(size, color, glow=False):
 # ============================================================================
 # FUNCTIONS
 # ============================================================================
-async def generate_speech(text, output_file):
-    """Generate speech using Microsoft neural voice"""
-    # Adjust rate based on speed setting (default is +0%, range from -50% to +50%)
-    rate_adjust = int((current_speed - 1.0) * 50)
-    rate_str = f"+{rate_adjust}%" if rate_adjust >= 0 else f"{rate_adjust}%"
 
-    communicate = edge_tts.Communicate(text, NEURAL_VOICE, rate=rate_str)
-    await communicate.save(output_file)
+# Use pre-loaded Piper TTS voice (loaded during splash screen)
+def get_piper_voice():
+    return _piper_voice
+
+def generate_speech_piper(text, output_file):
+    """Generate speech using Piper TTS (offline neural voice)"""
+    voice = get_piper_voice()
+
+    # Collect audio from chunks
+    audio_bytes = b''
+    sample_rate = None
+    for chunk in voice.synthesize(text):
+        audio_bytes += chunk.audio_int16_bytes
+        sample_rate = chunk.sample_rate
+
+    # Adjust sample rate for speed (higher = faster playback)
+    adjusted_rate = int(sample_rate * current_speed)
+
+    # Save to WAV file
+    with wave.open(output_file, 'wb') as f:
+        f.setnchannels(1)
+        f.setsampwidth(2)  # 16-bit audio
+        f.setframerate(adjusted_rate)  # Speed controlled by sample rate
+        f.writeframes(audio_bytes)
 
 def speak_clipboard():
     global speaking_thread, is_speaking, stop_playback
@@ -523,7 +621,7 @@ def speak_clipboard():
             pygame.mixer.music.unload()
         except:
             pass
-        time.sleep(0.1)  # Brief pause to let thread finish
+        time.sleep(0.1)
 
     # Reset state
     is_speaking = True
@@ -533,8 +631,8 @@ def speak_clipboard():
     def run():
         global is_speaking, stop_playback
         try:
-            # Generate speech with neural voice
-            asyncio.run(generate_speech(text, temp_audio_file))
+            # Generate speech using Piper TTS (offline neural voice)
+            generate_speech_piper(text, temp_audio_file)
 
             if stop_playback:
                 is_speaking = False
@@ -560,6 +658,7 @@ def speak_clipboard():
                 pygame.mixer.music.unload()
             except:
                 pass
+
         except Exception as e:
             print(f"Speech error: {e}")
 
@@ -733,6 +832,7 @@ root.title("SpeakAnywhere")
 root.overrideredirect(True)
 root.attributes('-topmost', True)
 root.attributes('-transparentcolor', '#010101')  # For rounded corners
+root.attributes('-alpha', 0.92)  # Make window semi-transparent (0.0 = invisible, 1.0 = solid)
 
 # Compact window size
 WIN_W, WIN_H = 220, 280

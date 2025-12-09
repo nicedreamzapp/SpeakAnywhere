@@ -26,6 +26,7 @@ env/
 *.temp
 tts_temp.mp3
 nul
+.speakanywhere_config
 
 # OS files
 .DS_Store
@@ -35,6 +36,15 @@ desktop.ini
 # Large model files (users should download separately)
 vosk-model-*/
 _resources/vosk-model-*/
+_resources/piper/*.onnx
+_resources/piper/*.onnx.json
+
+# Test files
+test_*.wav
+test_*.mp3
+sample.wav
+tts_temp.wav
+*.ps1
 
 # Old/duplicate files in root (these are now in _resources)
 grok-video-*.mp4
