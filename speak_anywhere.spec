@@ -1,10 +1,30 @@
 # -*- mode: python ; coding: utf-8 -*-
+import os
+import sys
+
+# Find vosk package location for DLLs
+import vosk
+vosk_path = os.path.dirname(vosk.__file__)
+
+# Find piper package location
+import piper
+piper_path = os.path.dirname(piper.__file__)
 
 a = Analysis(
     ['speak_anywhere.py'],
     pathex=[],
-    binaries=[],
-    datas=[('_resources', '_resources')],
+    binaries=[
+        # Vosk DLLs - required for speech recognition
+        (os.path.join(vosk_path, 'libvosk.dll'), 'vosk'),
+        (os.path.join(vosk_path, 'libgcc_s_seh-1.dll'), 'vosk'),
+        (os.path.join(vosk_path, 'libstdc++-6.dll'), 'vosk'),
+        (os.path.join(vosk_path, 'libwinpthread-1.dll'), 'vosk'),
+    ],
+    datas=[
+        ('_resources', '_resources'),
+        # Include vosk python files
+        (vosk_path, 'vosk'),
+    ],
     hiddenimports=[
         'piper',
         'piper.voice',
@@ -26,6 +46,8 @@ a = Analysis(
         'winshell',
         'win32com',
         'win32com.client',
+        'cffi',
+        'vosk.vosk_cffi',
     ],
     hookspath=[],
     hooksconfig={},
@@ -50,7 +72,6 @@ a = Analysis(
         'sphinx',
         'docutils',
         'lxml',
-        'xml.etree',
         'coremltools',
     ],
     noarchive=False,
