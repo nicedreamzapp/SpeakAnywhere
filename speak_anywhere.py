@@ -88,6 +88,8 @@ import json
 import cv2
 import pygame
 import wave
+import sounddevice as sd
+import numpy as np
 
 # ============================================================================
 # APPLICATION INFO
@@ -458,35 +460,41 @@ def get_input_devices():
         devices.append((0, "Default Microphone"))
     return devices
 
-# Get available speakers - show all real output devices
+# Get available speakers using sounddevice (better device control)
 def get_output_devices():
     devices = []
-    seen_simple_names = set()
+    has_realtek = False
+    has_usb = False
 
-    for i in range(pa.get_device_count()):
-        try:
-            info = pa.get_device_info_by_index(i)
-            if info.get('maxOutputChannels', 0) > 0:
-                name = info['name']
-                name_lower = name.lower()
+    for i, dev in enumerate(sd.query_devices()):
+        if dev['max_output_channels'] > 0:
+            name = dev['name']
+            name_lower = name.lower()
 
-                # Skip system devices
-                if 'primary sound' in name_lower:
+            # Skip system/virtual devices
+            if 'primary sound' in name_lower:
+                continue
+            if 'sound mapper' in name_lower:
+                continue
+            if '@system32' in name_lower:
+                continue
+            if 'hands-free' in name_lower:
+                continue
+            if name.strip() == 'Headphones ()' or name.strip() == 'Room Speaker ()':
+                continue
+
+            # Only keep one Realtek (laptop speakers) - prefer "Speakers" not "Headphones"
+            if 'realtek' in name_lower and 'speaker' in name_lower:
+                if has_realtek:
                     continue
-                if 'loopback' in name_lower:
+                has_realtek = True
+                devices.append((i, "Laptop Speakers"))
+            # Only keep one USB Audio Device
+            elif 'usb audio' in name_lower:
+                if has_usb:
                     continue
-
-                # Create a simple name for deduplication
-                simple_name = name.split('(')[0].strip().lower()[:20]
-                if simple_name in seen_simple_names:
-                    continue
-                seen_simple_names.add(simple_name)
-
-                # Truncate display name if needed
-                display_name = name if len(name) <= 40 else name[:37] + "..."
-                devices.append((i, display_name))
-        except:
-            pass
+                has_usb = True
+                devices.append((i, "USB Headset"))
 
     if not devices:
         devices.append((-1, "Default Speakers"))
@@ -513,6 +521,10 @@ def auto_select_best_mic():
     return (0, "Default")
 
 MICROPHONE_INDEX, selected_mic_name = auto_select_best_mic()
+
+# Track selected speaker for audio output
+SPEAKER_INDEX = output_devices[0][0] if output_devices else -1
+selected_speaker_name = output_devices[0][1] if output_devices else "Default"
 
 pyautogui.FAILSAFE = False
 pyautogui.PAUSE = 0.01
@@ -617,8 +629,7 @@ def speak_clipboard():
     if is_speaking or (speaking_thread and speaking_thread.is_alive()):
         stop_playback = True
         try:
-            pygame.mixer.music.stop()
-            pygame.mixer.music.unload()
+            sd.stop()
         except:
             pass
         time.sleep(0.1)
@@ -639,25 +650,28 @@ def speak_clipboard():
                 update_speak_button()
                 return
 
-            # Unload any previous audio first
-            try:
-                pygame.mixer.music.unload()
-            except:
-                pass
+            # Read the WAV file
+            with wave.open(temp_audio_file, 'rb') as wf:
+                sample_rate = wf.getframerate()
+                audio_data = wf.readframes(wf.getnframes())
+                audio_array = np.frombuffer(audio_data, dtype=np.int16)
 
-            # Play the audio
-            pygame.mixer.music.load(temp_audio_file)
-            pygame.mixer.music.play()
+            # Play using sounddevice with selected output device
+            device_id = SPEAKER_INDEX if SPEAKER_INDEX >= 0 else None
+            sd.play(audio_array, samplerate=sample_rate, device=device_id)
 
             # Wait for playback to finish or be stopped
-            while pygame.mixer.music.get_busy() and not stop_playback:
+            while True:
+                if stop_playback:
+                    sd.stop()
+                    break
+                try:
+                    stream = sd.get_stream()
+                    if not stream.active:
+                        break
+                except:
+                    break
                 time.sleep(0.1)
-
-            pygame.mixer.music.stop()
-            try:
-                pygame.mixer.music.unload()
-            except:
-                pass
 
         except Exception as e:
             print(f"Speech error: {e}")
@@ -673,8 +687,7 @@ def stop_speaking():
     stop_playback = True
     is_speaking = False
     try:
-        pygame.mixer.music.stop()
-        pygame.mixer.music.unload()
+        sd.stop()
     except:
         pass
     speaking_thread = None
@@ -932,7 +945,13 @@ speaker_combo = ttk.Combobox(root, textvariable=speaker_var, values=speaker_name
 speaker_combo.place(relx=0.5, y=172, anchor='center')
 
 def on_speaker_change(event):
-    pass  # pygame uses system default
+    global SPEAKER_INDEX, selected_speaker_name
+    selected_name = speaker_var.get()
+    for idx, name in output_devices:
+        if name == selected_name:
+            SPEAKER_INDEX = idx
+            selected_speaker_name = name
+            break
 speaker_combo.bind('<<ComboboxSelected>>', on_speaker_change)
 
 # ===== SPEAK CLIPBOARD BUTTON =====
