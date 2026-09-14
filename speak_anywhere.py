@@ -238,7 +238,10 @@ def play_video():
 play_video()
 splash.update()
 
-# Load model in background
+# Load the Vosk model AND the Piper voice in the background, both started before
+# the splash video is waited on. Each is hundreds of MB read off disk and neither
+# needs the main thread, so running them alongside the video makes them free
+# instead of adding their time on top of it.
 model = [None]
 def load_model():
     model[0] = Model(MODEL_PATH)
@@ -246,6 +249,19 @@ def load_model():
 
 load_thread = threading.Thread(target=load_model, daemon=True)
 load_thread.start()
+
+piper_loaded = [False]
+piper_result = {}
+def load_piper():
+    try:
+        from piper import PiperVoice
+        piper_result['voice'] = PiperVoice.load(PIPER_MODEL_PATH)
+    except BaseException as e:
+        piper_result['error'] = e
+    piper_loaded[0] = True
+
+piper_thread = threading.Thread(target=load_piper, daemon=True)
+piper_thread.start()
 
 # Wait for video to finish
 while not video_finished[0]:
@@ -264,11 +280,17 @@ if not model_loaded[0]:
 
 model = model[0]
 
-# Pre-load Piper TTS voice during splash to avoid delay on first use
-loading_text.config(text="Loading voice...")
-splash.update()
-from piper import PiperVoice
-_piper_voice = PiperVoice.load(PIPER_MODEL_PATH)
+# Wait for the Piper voice only if it has not already finished during the video
+if not piper_loaded[0]:
+    loading_text.config(text="Loading voice...")
+    splash.update()
+    while not piper_loaded[0]:
+        splash.update()
+        time.sleep(0.01)
+
+if 'error' in piper_result:
+    raise piper_result['error']
+_piper_voice = piper_result['voice']
 
 # ============================================================================
 # SETUP DIALOG - First run options
