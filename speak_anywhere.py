@@ -570,28 +570,64 @@ def get_output_devices():
 input_devices = get_input_devices()
 output_devices = get_output_devices()
 
-# Auto-select best microphone (prefer Realtek/built-in, then USB/external)
+# Start on whatever the machine is already set to use, in both directions.
+# This used to guess, and guessed wrong: the microphone preferred any built-in
+# Realtek array over a USB mic the user had actually selected in Windows, and
+# the speaker was simply whichever device happened to be first in the list. If
+# Windows has a default, that is the answer - the user already chose it.
+def _windows_default_name(kind):
+    """Name of the device Windows is currently using for 'input' or 'output'."""
+    try:
+        return sd.query_devices(kind=kind)['name']
+    except Exception:
+        return None
+
+
+def _match_windows_default(candidates, kind):
+    """Find the menu entry that is the Windows default device.
+
+    PyAudio and sounddevice both sit on PortAudio and share one index space,
+    so a default reported by sounddevice can be looked up in a menu built with
+    PyAudio. Labels are truncated for display, so compare the real device name
+    by index rather than the label.
+    """
+    default_name = _windows_default_name(kind)
+    if not default_name:
+        return None
+    for idx, label in candidates:
+        try:
+            if sd.query_devices(idx)['name'] == default_name:
+                return idx, label
+        except Exception:
+            continue
+    return None
+
+
 def auto_select_best_mic():
-    # First try to find Realtek (laptop built-in mic)
-    for idx, name in input_devices:
-        name_lower = name.lower()
-        if 'realtek' in name_lower and 'mic' in name_lower:
-            return idx, name
-    # Then try USB or external microphones
+    chosen = _match_windows_default(input_devices, 'input')
+    if chosen:
+        return chosen
+    # No default reported - prefer an external mic over a built-in array
     for idx, name in input_devices:
         name_lower = name.lower()
         if 'usb' in name_lower or 'external' in name_lower or 'headset' in name_lower:
             return idx, name
-    # Otherwise use first available
     if input_devices:
         return input_devices[0]
     return (0, "Default")
 
-MICROPHONE_INDEX, selected_mic_name = auto_select_best_mic()
 
-# Track selected speaker for audio output
-SPEAKER_INDEX = output_devices[0][0] if output_devices else -1
-selected_speaker_name = output_devices[0][1] if output_devices else "Default"
+def auto_select_best_speaker():
+    chosen = _match_windows_default(output_devices, 'output')
+    if chosen:
+        return chosen
+    if output_devices:
+        return output_devices[0]
+    return (-1, "Default Speakers")
+
+
+MICROPHONE_INDEX, selected_mic_name = auto_select_best_mic()
+SPEAKER_INDEX, selected_speaker_name = auto_select_best_speaker()
 
 pyautogui.FAILSAFE = False
 pyautogui.PAUSE = 0.01
