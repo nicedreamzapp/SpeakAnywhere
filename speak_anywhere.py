@@ -18,7 +18,7 @@ Description:
     Speak Anywhere is a voice-powered productivity tool that provides:
     - Voice dictation: Speak and have your words typed automatically
     - Text-to-speech: Copy text and have it read aloud with natural voices
-    - Offline speech recognition using Vosk
+    - Offline speech recognition using NVIDIA Parakeet TDT (sherpa-onnx)
     - Offline neural text-to-speech using Piper TTS
 
 Requirements:
@@ -98,8 +98,9 @@ _update_progress(20, "Loading audio system...")
 import pyaudio
 
 _update_progress(30, "Loading speech recognition...")
-from vosk import Model, KaldiRecognizer
+import sherpa_onnx
 import json
+import queue
 
 _update_progress(50, "Loading video system...")
 import cv2
@@ -159,7 +160,13 @@ def save_first_run_complete():
         pass
 
 VIDEO_FILE = os.path.join(RESOURCES_DIR, "splash_video.mp4")
-MODEL_PATH = os.path.join(RESOURCES_DIR, "vosk-model-small-en-us-0.15")
+# Speech recognition: NVIDIA Parakeet TDT 0.6B v2, full precision ONNX, run on
+# CPU through sherpa-onnx. Silero decides what is speech so the recognizer only
+# ever sees real utterances instead of room noise.
+MODEL_PATH = os.path.join(RESOURCES_DIR, "parakeet-tdt-0.6b-v2")
+VAD_MODEL_PATH = os.path.join(RESOURCES_DIR, "silero_vad.onnx")
+ASR_THREADS = 4          # measured faster than 8 on this class of CPU
+VAD_WINDOW = 512         # silero expects 512-sample windows at 16 kHz
 # Piper TTS voice model (offline neural voice - HFC Male, natural casual voice)
 PIPER_MODEL_PATH = os.path.join(RESOURCES_DIR, "piper", "en_US-hfc_male-medium.onnx")
 # ============================================================================
@@ -238,13 +245,21 @@ def play_video():
 play_video()
 splash.update()
 
-# Load the Vosk model AND the Piper voice in the background, both started before
+# Load the speech model AND the Piper voice in the background, both started before
 # the splash video is waited on. Each is hundreds of MB read off disk and neither
 # needs the main thread, so running them alongside the video makes them free
 # instead of adding their time on top of it.
 model = [None]
 def load_model():
-    model[0] = Model(MODEL_PATH)
+    model[0] = sherpa_onnx.OfflineRecognizer.from_transducer(
+        encoder=os.path.join(MODEL_PATH, "encoder.onnx"),
+        decoder=os.path.join(MODEL_PATH, "decoder.onnx"),
+        joiner=os.path.join(MODEL_PATH, "joiner.onnx"),
+        tokens=os.path.join(MODEL_PATH, "tokens.txt"),
+        num_threads=ASR_THREADS,
+        model_type="nemo_transducer",
+        decoding_method="greedy_search",
+    )
     model_loaded[0] = True
 
 load_thread = threading.Thread(target=load_model, daemon=True)
@@ -734,6 +749,30 @@ def stop_speaking():
     speaking_thread = None
     update_speak_button()
 
+def make_vad():
+    """Fresh Silero VAD per dictation session - it carries state between calls."""
+    cfg = sherpa_onnx.VadModelConfig()
+    cfg.silero_vad.model = VAD_MODEL_PATH
+    cfg.silero_vad.threshold = 0.5
+    cfg.silero_vad.min_silence_duration = 0.6
+    cfg.silero_vad.min_speech_duration = 0.2
+    cfg.silero_vad.max_speech_duration = 30.0
+    cfg.sample_rate = SAMPLE_RATE
+    return sherpa_onnx.VoiceActivityDetector(cfg, buffer_size_in_seconds=60)
+
+
+def type_dictated_text(text):
+    """Type one finished utterance, honouring the spoken editing commands."""
+    text = text.strip()
+    if not text:
+        return
+    if "new line" in text.lower():
+        pyautogui.press("enter")
+        return
+    text = text.replace(" period", ".").replace(" comma", ",")
+    pyautogui.write(text + " ", interval=0.005)
+
+
 def dictation_loop():
     global dictation_active, stream
     try:
@@ -743,11 +782,37 @@ def dictation_loop():
         dictation_active = False
         return
 
-    recognizer = KaldiRecognizer(model, SAMPLE_RATE)
-    last_speech_time = time.time()
+    recognizer = model
+    vad = make_vad()
+
+    # Decoding a phrase takes about as long as saying it, so it cannot happen on
+    # the thread that is draining the microphone - anything spoken during a
+    # decode would be dropped by the audio buffer. Segments go to a worker.
+    segment_queue = queue.Queue()
+    last_speech_time = [time.time()]
+
+    def decode_worker():
+        while True:
+            segment = segment_queue.get()
+            if segment is None:
+                break
+            try:
+                s = recognizer.create_stream()
+                s.accept_waveform(SAMPLE_RATE, segment)
+                recognizer.decode_stream(s)
+                # type it even if dictation was just switched off, otherwise the
+                # last thing said before hitting the button is silently lost
+                type_dictated_text(s.result.text)
+            except:
+                pass
+            finally:
+                last_speech_time[0] = time.time()
+
+    worker = threading.Thread(target=decode_worker, daemon=True)
+    worker.start()
+
+    pending = np.empty(0, dtype=np.float32)
     start_time = time.time()
-    typed_words = []
-    last_partial_words = []
 
     while dictation_active:
         try:
@@ -756,45 +821,26 @@ def dictation_loop():
             data = stream.read(CHUNK_SIZE, exception_on_overflow=False)
             if not dictation_active:
                 break
-            if recognizer.AcceptWaveform(data):
-                result = json.loads(recognizer.Result())
-                if 'text' in result and result['text']:
-                    text = result['text']
-                    final_words = text.split()
-                    new_words = final_words[len(typed_words):]
-                    if new_words:
-                        new_text = " ".join(new_words)
-                        if "new line" in new_text.lower():
-                            pyautogui.press("enter")
-                        else:
-                            new_text = new_text.replace(" period", ".").replace(" comma", ",")
-                            pyautogui.write(new_text + " ", interval=0.005)
-                    typed_words = []
-                    last_partial_words = []
-                    last_speech_time = time.time()
-            else:
-                partial_result = json.loads(recognizer.PartialResult())
-                if 'partial' in partial_result and partial_result['partial']:
-                    partial_words = partial_result['partial'].split()
-                    if len(partial_words) > len(typed_words):
-                        stable_new_words = []
-                        for i, word in enumerate(partial_words[len(typed_words):], start=len(typed_words)):
-                            if i < len(last_partial_words):
-                                stable_new_words.append(word)
-                        if stable_new_words:
-                            new_text = " ".join(stable_new_words)
-                            if "new line" in new_text.lower():
-                                pyautogui.press("enter")
-                            else:
-                                new_text = new_text.replace(" period", ".").replace(" comma", ",")
-                                pyautogui.write(new_text + " ", interval=0.005)
-                            typed_words.extend(stable_new_words)
-                    last_partial_words = partial_words
-                    last_speech_time = time.time()
-            if (time.time() - start_time) > 1.0 and (time.time() - last_speech_time) > TIMEOUT_SECONDS:
+
+            samples = np.frombuffer(data, dtype=np.int16).astype(np.float32) / 32768.0
+            pending = np.concatenate((pending, samples))
+            while len(pending) >= VAD_WINDOW:
+                vad.accept_waveform(pending[:VAD_WINDOW])
+                pending = pending[VAD_WINDOW:]
+
+            while not vad.empty():
+                segment_queue.put(np.array(vad.front.samples, dtype=np.float32))
+                vad.pop()
+                last_speech_time[0] = time.time()
+
+            if (time.time() - start_time) > 1.0 and (time.time() - last_speech_time[0]) > TIMEOUT_SECONDS:
                 break
         except:
             break
+
+    # let whatever was already captured finish typing before tearing down
+    segment_queue.put(None)
+    worker.join(timeout=15)
 
     dictation_active = False
     if stream:

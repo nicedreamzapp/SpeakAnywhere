@@ -2,7 +2,7 @@ pyperclip
 pillow
 pyautogui
 pyaudio
-vosk
+sherpa-onnx
 opencv-python
 pygame
 piper-tts
