@@ -15,7 +15,8 @@ Vosk's *most* accurate English model did not fix it — it just made startup tak
 
 The recognizer is now **[NVIDIA Parakeet TDT 0.6B v2](https://huggingface.co/nvidia/parakeet-tdt-0.6b-v2)**,
 running on the CPU through [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx), with
-[Silero VAD](https://github.com/snakers4/silero-vad) deciding what counts as speech.
+[Silero VAD](https://github.com/snakers4/silero-vad) deciding what counts as speech. The voice that
+reads text back was replaced too — see [The voice](#the-voice) below.
 
 Here is the actual difference. One 7-second recording from a USB microphone, normal speaking voice,
 transcribed by both engines:
@@ -62,6 +63,31 @@ keep talking straight through.
 
 **Pending speech still gets typed when you stop.** Switching dictation off drains the queue first,
 so the last thing you said before hitting the button is not silently lost.
+
+---
+
+## The voice
+
+Text-to-speech was Piper, on the `en_US-hfc_male-medium` voice. Piper is small and fast but it
+sounds its age — flat and synthetic on anything longer than a sentence.
+
+It now uses **[Kokoro-82M](https://huggingface.co/hexgrad/Kokoro-82M)**, also through sherpa-onnx,
+so no new dependency. 82M parameters, markedly more natural, and still comfortable on a CPU at
+roughly 1.5x realtime. Piper is kept as an option rather than deleted, because a few of its voices
+hold up fine.
+
+### Choosing one
+
+Run `voice_picker.pyw`. Click a voice to hear it read a sample line, then hit *Use this voice*.
+The choice is saved to
+`%APPDATA%/SpeakAnywhere/voice.json` and picked up next time the app starts.
+
+The list is deliberately short. Kokoro ships 54 voices, and it publishes a
+[quality grade for each one](https://huggingface.co/hexgrad/Kokoro-82M/blob/main/VOICES.md).
+Everything graded C or D is left out — `am_adam` is a D — along with two more
+(`af_sky`, `am_santa`) trained on only minutes of audio. What remains is 15 English voices at
+grade A or B, plus the three Piper voices worth keeping. The point is to pick a voice, not to
+audition a pile of bad ones.
 
 ---
 
@@ -131,6 +157,17 @@ cd _resources
 curl -LO https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/silero_vad.onnx
 ```
 
+### Download the text-to-speech voices
+
+```bash
+cd _resources
+curl -LO https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/kokoro-multi-lang-v1_0.tar.bz2
+tar -xjf kokoro-multi-lang-v1_0.tar.bz2 && rm kokoro-multi-lang-v1_0.tar.bz2
+```
+
+Take the `v1_0` build, not `v1_1`. Despite the higher number, v1.1 is the Chinese-focused release —
+it carries exactly three English voices against v1.0's twenty-eight.
+
 ### Run
 
 ```bash
@@ -148,7 +185,8 @@ and quantization is the first thing that erodes it.
 1. **Launch** and wait out the splash.
 2. **Dictate** — tap the microphone, talk, and your words are typed at the cursor. Tap again to stop.
 3. **Listen** — copy text to the clipboard, tap Speak Clipboard.
-4. **Adjust** — playback speed runs 0.5x to 2.0x, and the microphone and speaker are both selectable.
+4. **Change the voice** — open Speak Anywhere Voices, click through them, keep the one you like.
+5. **Adjust** — playback speed runs 0.5x to 2.0x, and the microphone and speaker are both selectable.
 
 ### Voice commands
 
@@ -167,7 +205,9 @@ explicit.
 
 ```
 SpeakAnywhere/
-├── speak_anywhere.py               # the whole application
+├── speak_anywhere.py               # the application
+├── voices.py                       # voice catalog, saved choice, synthesis
+├── voice_picker.pyw                # audition voices and pick one
 ├── requirements.txt
 ├── LICENSE.txt
 ├── CREDITS.md                      # upstream projects this is built on
@@ -177,7 +217,8 @@ SpeakAnywhere/
     ├── splash_audio.mp3
     ├── silero_vad.onnx             # downloaded, see setup
     ├── parakeet-tdt-0.6b-v2/       # downloaded, see setup
-    └── piper/                      # Piper neural voices
+    ├── kokoro-multi-lang-v1_0/     # downloaded, see setup
+    └── piper/                      # Piper voices, optional
 ```
 
 ---
@@ -200,7 +241,8 @@ pyinstaller --onefile --noconsole \
 - **[NVIDIA Parakeet TDT](https://huggingface.co/nvidia/parakeet-tdt-0.6b-v2)** — speech recognition
 - **[sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx)** — ONNX runtime for the recognizer and VAD
 - **[Silero VAD](https://github.com/snakers4/silero-vad)** — voice activity detection
-- **[Piper](https://github.com/rhasspy/piper)** — offline neural text-to-speech
+- **[Kokoro-82M](https://huggingface.co/hexgrad/Kokoro-82M)** — text-to-speech
+- **[Piper](https://github.com/rhasspy/piper)** — alternate text-to-speech voices
 - **[PyAudio](https://pypi.org/project/PyAudio/)** / **[sounddevice](https://python-sounddevice.readthedocs.io/)** — audio I/O
 - **[PyAutoGUI](https://pyautogui.readthedocs.io/)** — keyboard automation
 - **[Tkinter](https://docs.python.org/3/library/tkinter.html)** — interface

@@ -36,6 +36,7 @@ desktop.ini
 
 # Large model files (users should download separately)
 _resources/parakeet-tdt-*/
+_resources/kokoro-*/
 _resources/silero_vad.onnx
 _resources/piper/*.onnx
 _resources/piper/*.onnx.json

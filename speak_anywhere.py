@@ -19,7 +19,7 @@ Description:
     - Voice dictation: Speak and have your words typed automatically
     - Text-to-speech: Copy text and have it read aloud with natural voices
     - Offline speech recognition using NVIDIA Parakeet TDT (sherpa-onnx)
-    - Offline neural text-to-speech using Piper TTS
+    - Offline neural text-to-speech using Kokoro-82M (voice chosen in voice_picker.pyw)
 
 Requirements:
     - Windows 10/11
@@ -101,6 +101,7 @@ _update_progress(30, "Loading speech recognition...")
 import sherpa_onnx
 import json
 import queue
+import voices
 
 _update_progress(50, "Loading video system...")
 import cv2
@@ -184,8 +185,7 @@ def _asr_threads():
 
 
 ASR_THREADS = _asr_threads()
-# Piper TTS voice model (offline neural voice - HFC Male, natural casual voice)
-PIPER_MODEL_PATH = os.path.join(RESOURCES_DIR, "piper", "en_US-hfc_male-medium.onnx")
+# Text-to-speech voice lives in voices.py, chosen with voice_picker.pyw
 # ============================================================================
 
 # ============================================================================
@@ -282,18 +282,20 @@ def load_model():
 load_thread = threading.Thread(target=load_model, daemon=True)
 load_thread.start()
 
-piper_loaded = [False]
-piper_result = {}
-def load_piper():
+# Warm the chosen text-to-speech voice on the same trick - synthesising one
+# short string builds the engine, so the first real "Speak Clipboard" is not
+# the one that pays for loading it.
+voice_loaded = [False]
+voice_result = {}
+def load_voice():
     try:
-        from piper import PiperVoice
-        piper_result['voice'] = PiperVoice.load(PIPER_MODEL_PATH)
+        voices.synthesize("Ready.", speed=1.0)
     except BaseException as e:
-        piper_result['error'] = e
-    piper_loaded[0] = True
+        voice_result['error'] = e
+    voice_loaded[0] = True
 
-piper_thread = threading.Thread(target=load_piper, daemon=True)
-piper_thread.start()
+voice_thread = threading.Thread(target=load_voice, daemon=True)
+voice_thread.start()
 
 # Wait for video to finish
 while not video_finished[0]:
@@ -312,17 +314,16 @@ if not model_loaded[0]:
 
 model = model[0]
 
-# Wait for the Piper voice only if it has not already finished during the video
-if not piper_loaded[0]:
+# Wait for the voice only if it has not already finished during the video
+if not voice_loaded[0]:
     loading_text.config(text="Loading voice...")
     splash.update()
-    while not piper_loaded[0]:
+    while not voice_loaded[0]:
         splash.update()
         time.sleep(0.01)
 
-if 'error' in piper_result:
-    raise piper_result['error']
-_piper_voice = piper_result['voice']
+if 'error' in voice_result:
+    raise voice_result['error']
 
 # ============================================================================
 # SETUP DIALOG - First run options
@@ -700,30 +701,16 @@ def create_mic_button(size, color, glow=False):
 # FUNCTIONS
 # ============================================================================
 
-# Use pre-loaded Piper TTS voice (loaded during splash screen)
-def get_piper_voice():
-    return _piper_voice
-
 def generate_speech_piper(text, output_file):
-    """Generate speech using Piper TTS (offline neural voice)"""
-    voice = get_piper_voice()
+    """Render text with whichever voice is selected in the picker.
 
-    # Collect audio from chunks
-    audio_bytes = b''
-    sample_rate = None
-    for chunk in voice.synthesize(text):
-        audio_bytes += chunk.audio_int16_bytes
-        sample_rate = chunk.sample_rate
-
-    # Adjust sample rate for speed (higher = faster playback)
-    adjusted_rate = int(sample_rate * current_speed)
-
-    # Save to WAV file
-    with wave.open(output_file, 'wb') as f:
-        f.setnchannels(1)
-        f.setsampwidth(2)  # 16-bit audio
-        f.setframerate(adjusted_rate)  # Speed controlled by sample rate
-        f.writeframes(audio_bytes)
+    Kept under its old name because the callers have not changed. The engine
+    behind it has: voices.synthesize dispatches to Kokoro or Piper depending
+    on the saved choice, and applies speed the right way for each - Kokoro has
+    a real speed control, Piper only has playback rate.
+    """
+    audio_bytes, sample_rate = voices.synthesize(text, speed=current_speed)
+    voices.write_wav(output_file, audio_bytes, sample_rate)
 
 def speak_clipboard():
     global speaking_thread, is_speaking, stop_playback
