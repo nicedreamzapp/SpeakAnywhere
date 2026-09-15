@@ -473,96 +473,87 @@ TIMEOUT_SECONDS = 10
 
 # Microphone index will be set after device detection below
 
-# Get available microphones - show only real physical microphones
+# ============================================================================
+# DEVICE MENUS
+#
+# PortAudio lists every endpoint once per host API, so the raw device list is
+# mostly noise: MME contributes a "Sound Mapper", DirectSound a "Primary Sound
+# Driver", and WDM-KS a pile of "... with SST" clones plus "PC Speaker",
+# "FrontMic" and "Stereo Mix" entries that are not devices anyone would pick.
+# Name-matching your way through that is guesswork, and filtering by keyword
+# is how the speaker menu ended up throwing away real hardware.
+#
+# WASAPI is the one host API whose list matches Windows sound settings exactly
+# - one entry per real endpoint, nothing invented. So WASAPI decides what is
+# real, and the menu shows that and only that.
+#
+# WASAPI cannot always be opened at an arbitrary sample rate though, and this
+# app records at 16 kHz, so the index handed to PyAudio is the MME or
+# DirectSound one for the same endpoint. MME truncates names at 31 characters,
+# which is why the match is a prefix test rather than equality.
+# ============================================================================
+def _real_endpoint_names(kind):
+    """Full names of the endpoints Windows actually exposes, per WASAPI."""
+    key = 'max_input_channels' if kind == 'input' else 'max_output_channels'
+    names = []
+    try:
+        devices = sd.query_devices()
+        for api in sd.query_hostapis():
+            if 'wasapi' not in api['name'].lower():
+                continue
+            for di in api['devices']:
+                if devices[di][key] > 0:
+                    names.append(devices[di]['name'])
+    except Exception:
+        pass
+    return names
+
+
+def _openable_index(full_name, kind):
+    """Lowest-index openable device matching this endpoint (MME first)."""
+    key = 'max_input_channels' if kind == 'input' else 'max_output_channels'
+    try:
+        devices = sd.query_devices()
+        hostapis = sd.query_hostapis()
+    except Exception:
+        return None
+    for di, d in enumerate(devices):
+        if d[key] <= 0:
+            continue
+        if 'wdm-ks' in hostapis[d['hostapi']]['name'].lower():
+            continue  # kernel streaming, not reliably openable here
+        name = d['name'].strip()
+        if name and full_name.lower().startswith(name.lower()):
+            return di
+    return None
+
+
+def _device_menu(kind, friendly=None):
+    menu = []
+    for full_name in _real_endpoint_names(kind):
+        idx = _openable_index(full_name, kind)
+        if idx is None:
+            continue
+        label = full_name
+        for match, nicer in (friendly or {}).items():
+            if match in full_name.lower():
+                label = nicer
+                break
+        menu.append((idx, label))
+    return menu
+
+
 def get_input_devices():
-    devices = []
-    seen_simple_names = set()
-
-    for i in range(pa.get_device_count()):
-        try:
-            info = pa.get_device_info_by_index(i)
-            if info.get('maxInputChannels', 0) > 0:
-                name = info['name']
-                name_lower = name.lower()
-
-                # Skip system/virtual devices
-                if 'primary sound' in name_lower:
-                    continue
-                if 'stereo mix' in name_lower or 'what u hear' in name_lower:
-                    continue
-                if 'loopback' in name_lower:
-                    continue
-                # Skip virtual/fake devices
-                if 'camo' in name_lower:  # Camo virtual webcam
-                    continue
-                if '@system32' in name_lower:  # Bluetooth placeholder
-                    continue
-                if 'hands-free' in name_lower:  # Bluetooth audio gateway
-                    continue
-
-                # Create a simple name for deduplication (remove host API suffix)
-                simple_name = name.split('(')[0].strip().lower()[:20]
-                if simple_name in seen_simple_names:
-                    continue
-                seen_simple_names.add(simple_name)
-
-                # Truncate display name if needed
-                display_name = name if len(name) <= 40 else name[:37] + "..."
-                devices.append((i, display_name))
-        except:
-            pass
-
+    devices = _device_menu('input')
     if not devices:
         devices.append((0, "Default Microphone"))
     return devices
 
 # Get available speakers using sounddevice (better device control)
 def get_output_devices():
-    """List every real output device.
-
-    This used to keep only two hardcoded name patterns - a Realtek device with
-    "speaker" in the name, and anything containing "usb audio" - and silently
-    dropped everything else. Monitor speakers, Bluetooth, and any USB speaker
-    whose driver names it something other than "USB Audio" never appeared in
-    the menu at all. Now the shortlist is inverted: skip the handful of known
-    virtual endpoints, keep whatever is left.
-    """
-    devices = []
-    seen = set()
-
-    for i, dev in enumerate(sd.query_devices()):
-        if dev['max_output_channels'] <= 0:
-            continue
-
-        name = dev['name']
-        name_lower = name.lower()
-
-        # Virtual/system endpoints that are not actual speakers
-        if 'primary sound' in name_lower:
-            continue
-        if 'sound mapper' in name_lower:
-            continue
-        if '@system32' in name_lower:
-            continue
-        if 'hands-free' in name_lower:
-            continue
-        if not name.strip() or name.strip() in ('Headphones ()', 'Room Speaker ()'):
-            continue
-
-        # Windows exposes the same endpoint once per host API, so collapse the
-        # duplicates. Realtek's several "Speakers N" entries are all the built
-        # in speakers and get one friendly label between them.
-        if 'realtek' in name_lower and 'speaker' in name_lower:
-            key, label = "Laptop Speakers", "Laptop Speakers"
-        else:
-            key = name_lower.split('(')[0].strip() or name_lower
-            label = name if len(name) <= 40 else name[:37] + "..."
-
-        if key in seen:
-            continue
-        seen.add(key)
-        devices.append((i, label))
-
+    # Only the built-in speakers get renamed; everything else keeps the name
+    # Windows gives it, so what the menu says matches what sound settings say.
+    devices = _device_menu('output', friendly={'speakers (realtek': 'Laptop Speakers'})
     if not devices:
         devices.append((-1, "Default Speakers"))
     return devices
@@ -1033,7 +1024,10 @@ style.map('Dark.TCombobox',
 
 # Mic dropdown
 mic_names = [name for idx, name in input_devices]
-mic_var = tk.StringVar(value=selected_mic_name[:25] if mic_names else "Default")
+# Show the full device name, not a 25-character slice of it. The dropdown
+# matches selections against these exact strings, so a truncated value is not
+# in its own list and the box ends up displaying something unselectable.
+mic_var = tk.StringVar(value=selected_mic_name if mic_names else "Default")
 mic_combo = ttk.Combobox(root, textvariable=mic_var, values=mic_names,
                          width=24, state='readonly', style='Dark.TCombobox', font=("Segoe UI", 8))
 mic_combo.place(relx=0.5, y=145, anchor='center')
@@ -1050,7 +1044,9 @@ mic_combo.bind('<<ComboboxSelected>>', on_mic_change)
 
 # Speaker dropdown
 speaker_names = [name for idx, name in output_devices]
-speaker_var = tk.StringVar(value=speaker_names[0][:25] if speaker_names else "Default")
+# Show the device actually selected, not simply the first one in the list -
+# otherwise the box can claim one speaker while audio plays out of another.
+speaker_var = tk.StringVar(value=selected_speaker_name if speaker_names else "Default")
 speaker_combo = ttk.Combobox(root, textvariable=speaker_var, values=speaker_names,
                              width=24, state='readonly', style='Dark.TCombobox', font=("Segoe UI", 8))
 speaker_combo.place(relx=0.5, y=172, anchor='center')
