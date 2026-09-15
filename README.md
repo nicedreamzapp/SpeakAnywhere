@@ -34,7 +34,7 @@
 **🚀 Start here**
 - [⚡ What it does](#-what-it-does)
 - [📦 Setup](#-setup)
-- [🎛️ Using it](#️-using-it)
+- [🎛️ Using it](#-using-it)
 
 </td>
 <td valign="top" width="33%">
@@ -42,13 +42,13 @@
 **🔬 What changed**
 - [🔥 Vosk is gone](#-the-big-change-vosk-is-gone)
 - [📊 Speed & memory](#-and-it-got-dramatically-faster)
-- [🗣️ The voice](#️-the-voice)
+- [🗣️ The voice](#-the-voice)
 
 </td>
 <td valign="top" width="33%">
 
 **🛠️ Under the hood**
-- [⚙️ How dictation works](#️-how-dictation-actually-works)
+- [⚙️ How dictation works](#-how-dictation-actually-works)
 - [📈 Performance](#-performance)
 - [📁 Structure](#-project-structure)
 - [🙏 Built on](#-built-on)
