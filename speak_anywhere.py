@@ -518,39 +518,50 @@ def get_input_devices():
 
 # Get available speakers using sounddevice (better device control)
 def get_output_devices():
+    """List every real output device.
+
+    This used to keep only two hardcoded name patterns - a Realtek device with
+    "speaker" in the name, and anything containing "usb audio" - and silently
+    dropped everything else. Monitor speakers, Bluetooth, and any USB speaker
+    whose driver names it something other than "USB Audio" never appeared in
+    the menu at all. Now the shortlist is inverted: skip the handful of known
+    virtual endpoints, keep whatever is left.
+    """
     devices = []
-    has_realtek = False
-    has_usb = False
+    seen = set()
 
     for i, dev in enumerate(sd.query_devices()):
-        if dev['max_output_channels'] > 0:
-            name = dev['name']
-            name_lower = name.lower()
+        if dev['max_output_channels'] <= 0:
+            continue
 
-            # Skip system/virtual devices
-            if 'primary sound' in name_lower:
-                continue
-            if 'sound mapper' in name_lower:
-                continue
-            if '@system32' in name_lower:
-                continue
-            if 'hands-free' in name_lower:
-                continue
-            if name.strip() == 'Headphones ()' or name.strip() == 'Room Speaker ()':
-                continue
+        name = dev['name']
+        name_lower = name.lower()
 
-            # Only keep one Realtek (laptop speakers) - prefer "Speakers" not "Headphones"
-            if 'realtek' in name_lower and 'speaker' in name_lower:
-                if has_realtek:
-                    continue
-                has_realtek = True
-                devices.append((i, "Laptop Speakers"))
-            # Only keep one USB Audio Device
-            elif 'usb audio' in name_lower:
-                if has_usb:
-                    continue
-                has_usb = True
-                devices.append((i, "USB Headset"))
+        # Virtual/system endpoints that are not actual speakers
+        if 'primary sound' in name_lower:
+            continue
+        if 'sound mapper' in name_lower:
+            continue
+        if '@system32' in name_lower:
+            continue
+        if 'hands-free' in name_lower:
+            continue
+        if not name.strip() or name.strip() in ('Headphones ()', 'Room Speaker ()'):
+            continue
+
+        # Windows exposes the same endpoint once per host API, so collapse the
+        # duplicates. Realtek's several "Speakers N" entries are all the built
+        # in speakers and get one friendly label between them.
+        if 'realtek' in name_lower and 'speaker' in name_lower:
+            key, label = "Laptop Speakers", "Laptop Speakers"
+        else:
+            key = name_lower.split('(')[0].strip() or name_lower
+            label = name if len(name) <= 40 else name[:37] + "..."
+
+        if key in seen:
+            continue
+        seen.add(key)
+        devices.append((i, label))
 
     if not devices:
         devices.append((-1, "Default Speakers"))
