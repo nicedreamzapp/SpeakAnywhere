@@ -165,8 +165,25 @@ VIDEO_FILE = os.path.join(RESOURCES_DIR, "splash_video.mp4")
 # ever sees real utterances instead of room noise.
 MODEL_PATH = os.path.join(RESOURCES_DIR, "parakeet-tdt-0.6b-v2")
 VAD_MODEL_PATH = os.path.join(RESOURCES_DIR, "silero_vad.onnx")
-ASR_THREADS = 4          # measured faster than 8 on this class of CPU
 VAD_WINDOW = 512         # silero expects 512-sample windows at 16 kHz
+
+
+def _asr_threads():
+    """Roughly the physical core count, which is where this model peaks.
+
+    Handing the recognizer every logical processor makes it slower, not
+    faster - the hyperthread siblings contend for the same execution units.
+    On a 4-core/8-thread laptop, 8 threads measured 1.1x realtime against
+    1.9x at 4. os.cpu_count() reports logical processors, so halving it
+    approximates physical cores without taking a dependency on psutil.
+    Clamped so a small machine still gets 2 and a large one does not spawn
+    more threads than the model can use.
+    """
+    logical = os.cpu_count() or 4
+    return max(2, min(8, logical // 2))
+
+
+ASR_THREADS = _asr_threads()
 # Piper TTS voice model (offline neural voice - HFC Male, natural casual voice)
 PIPER_MODEL_PATH = os.path.join(RESOURCES_DIR, "piper", "en_US-hfc_male-medium.onnx")
 # ============================================================================
@@ -528,18 +545,13 @@ def _openable_index(full_name, kind):
     return None
 
 
-def _device_menu(kind, friendly=None):
+def _device_menu(kind):
     menu = []
     for full_name in _real_endpoint_names(kind):
         idx = _openable_index(full_name, kind)
         if idx is None:
             continue
-        label = full_name
-        for match, nicer in (friendly or {}).items():
-            if match in full_name.lower():
-                label = nicer
-                break
-        menu.append((idx, label))
+        menu.append((idx, full_name))
     return menu
 
 
@@ -551,9 +563,10 @@ def get_input_devices():
 
 # Get available speakers using sounddevice (better device control)
 def get_output_devices():
-    # Only the built-in speakers get renamed; everything else keeps the name
-    # Windows gives it, so what the menu says matches what sound settings say.
-    devices = _device_menu('output', friendly={'speakers (realtek': 'Laptop Speakers'})
+    # No renaming. Whatever Windows calls a device is what the menu calls it,
+    # so the list reads the same as sound settings on any machine. Relabelling
+    # by vendor string only works on the hardware you happened to test on.
+    devices = _device_menu('output')
     if not devices:
         devices.append((-1, "Default Speakers"))
     return devices
@@ -563,7 +576,7 @@ output_devices = get_output_devices()
 
 # Start on whatever the machine is already set to use, in both directions.
 # This used to guess, and guessed wrong: the microphone preferred any built-in
-# Realtek array over a USB mic the user had actually selected in Windows, and
+# microphone array over a USB mic the user had actually selected in Windows, and
 # the speaker was simply whichever device happened to be first in the list. If
 # Windows has a default, that is the answer - the user already chose it.
 def _windows_default_name(kind):

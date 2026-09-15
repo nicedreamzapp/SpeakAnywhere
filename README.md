@@ -80,9 +80,10 @@ Measured on an 11th-gen Core i7-1185G7 (4 cores, no discrete GPU):
 | Decode, 4 threads | ~1.9x realtime |
 | Decode, 8 threads | ~1.1x realtime |
 
-Note the thread count. Hyperthreading actively hurts here — 8 threads is slower than 4 on this CPU.
-`ASR_THREADS` at the top of the script is set to 4 for that reason. On a machine with more physical
-cores, raise it.
+Note the thread count. Hyperthreading actively hurts here — 8 threads is slower than 4 on this CPU,
+because the sibling threads contend for the same execution units. The app derives its thread count
+from your machine rather than hardcoding one: roughly half the logical processors, clamped between
+2 and 8. Nothing to configure.
 
 ---
 
