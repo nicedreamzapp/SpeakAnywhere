@@ -48,6 +48,7 @@
 <td valign="top" width="33%">
 
 **🛠️ Under the hood**
+- [🔊 How the reader works](#-how-the-reader-actually-works)
 - [⚙️ How dictation works](#-how-dictation-actually-works)
 - [📈 Performance](#-performance)
 - [📁 Structure](#-project-structure)
@@ -142,7 +143,9 @@ to Vosk's *most accurate* English model didn't fix it either — it just pushed 
 
 | | 🐌 **Before** | 🚀 **Now** | 🎯 **Gain** |
 |---:|:---:|:---:|:--|
-| ⏱️ **Time to usable window** | `129.5 s` | `11.6 s` | **118 seconds faster** |
+| ⏱️ **Time to window** | `129.5 s` | `2.6 s` | **127 seconds faster** |
+| 🎤 **Dictation ready** | `129.5 s` | `~5 s` | *the recognizer loads behind the open window* |
+| 🔊 **First word of a long read** | `77 s` | `1.2 s` | *no longer grows with the text* |
 | 🧠 **Memory** | `9.6 GB` | `2.3 GB` | **7.3 GB lighter** |
 
 </div>
@@ -151,6 +154,16 @@ to Vosk's *most accurate* English model didn't fix it either — it just pushed 
 > 🕵️ **Why the old number was so bad.** The old build loaded its 2.7 GB speech model **twice** —
 > once in the launcher, once in the app, which never read the launcher's copy. That 9.6 GB was
 > **two full copies of the same model** sitting in RAM.
+
+> [!NOTE]
+> ⏱️ **Nothing on screen waits for a model any more.** The window used to sit behind the full
+> splash video *and* a 2.4 GB recognizer load. Speak Clipboard never touches the recognizer, and
+> dictation only needs it to **decode** — so it loads behind the open window, the microphone opens
+> immediately, and audio is buffered until it arrives. **Nothing spoken in those first seconds is
+> lost.**
+>
+> The `77 s` above was a **2,500 character** paste. It is not a typo: the old reader rendered the
+> **entire** clipboard to a WAV before playing a single word, so the silence scaled with the text.
 
 <br>
 
@@ -196,6 +209,47 @@ Saved to `%APPDATA%/SpeakAnywhere/voice.json`, picked up on next launch.
 >
 > ✅ **What's left: 15 English voices at grade A or B, plus 3 Piper voices.**
 > The point is to *pick* a voice, not to audition a pile of bad ones.
+
+<br>
+
+---
+
+## 🔊 How the reader actually works
+
+It **starts talking on the first sentence** instead of rendering the whole clipboard first.
+
+<div align="center">
+
+```
+  📋 clipboard
+       │
+       ▼
+  sentences ──► chunks: 60 chars ─► 90 ─► 135 ─► 202 ─► 400 …
+                          │
+                          ▼
+                   🗣️ render thread ──► 📥 queue (3 deep) ──► 🔈 one output stream
+                       ~1.75x realtime                          gapless
+```
+
+</div>
+
+**The opener is short because it is the only piece anyone waits on.** Everything after it is
+rendered while earlier audio is still playing.
+
+<div align="center">
+
+| | Why it is built this way |
+|:--:|:--|
+| 📈 | **Chunks grow by half each time.** Rendering runs ~1.75x faster than speech plays, so every pass banks more finished audio than it spends. Jumping straight to full size leaves the renderer **8 seconds behind** after a 2 second opener — a stall exactly where it is most audible. |
+| ✂️ | **A long opening sentence is broken at its commas.** Only near the start, where there is no buffer to coast on. Past that, sentences are left whole so chunk edges land where a reader would pause anyway. |
+| 🔗 | **One output stream for the whole read**, opened on the first chunk's rate — so the joins are silent instead of a click per sentence. |
+| ⏹️ | **Stop lands within 0.2 s.** Audio is written to the device in fifths of a second rather than a chunk at a time. |
+
+</div>
+
+> [!NOTE]
+> 🎯 **Measured on a 2 minute read: no gap at all.** `1.2 s` to the first word, and the renderer
+> stayed ahead of the listener for the remaining `128 s` of audio.
 
 <br>
 
@@ -272,12 +326,19 @@ Measured on an **11th-gen Core i7-1185G7** — 4 cores, no discrete GPU:
 
 | | Step | Result |
 |:--:|:--|:--|
-| 🧩 | **Parakeet model load** | `~15 s` · *overlaps the splash video* |
-| 🗣️ | **Kokoro voice load** | *overlaps the splash video* |
+| 🪟 | **Window on screen** | **`2.6 s`** · *waits for nothing but itself* |
+| 🧩 | **Parakeet model load** | `3.5 s` warm, much longer on a cold disk · *behind the open window* |
+| 🗣️ | **Kokoro voice load** | `~3 s` · *after the recognizer, not competing with it* |
+| 🔊 | **First word of a read** | **`1.2 s`** · *any length of text* |
 | ⚡ | **Decode @ 4 threads** | **`1.9x realtime`** ✅ |
 | 🐢 | **Decode @ 8 threads** | `1.1x realtime` ❌ |
 
 </div>
+
+> [!NOTE]
+> 🧱 **What is left is the floor, not a bug.** That `3.5 s` is 2.4 GB of **full precision** encoder
+> weights coming off disk. There are smaller quantized builds; this project does not use one.
+> It is now spent behind an open window instead of in front of it.
 
 > [!WARNING]
 > 🧵 **More threads is slower.** Hyperthread siblings contend for the **same execution units**.
@@ -370,7 +431,7 @@ python speak_anywhere.py
 
 | | Step | |
 |:--:|:--|:--|
-| **1️⃣** | **Launch** | wait out the splash |
+| **1️⃣** | **Launch** | the window is up in about 2 seconds |
 | **2️⃣** | 🎤 **Tap the mic and talk** | tap again to stop |
 | **3️⃣** | 🔊 **Copy text, tap Speak Clipboard** | hear it read back |
 | **4️⃣** | 🎚️ **Open the voice picker** | keep the one you like |
