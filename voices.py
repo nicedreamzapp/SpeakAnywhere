@@ -12,6 +12,7 @@ of voices worth hearing rather than a pile to sift through.
 """
 import json
 import os
+import threading
 import wave
 
 RESOURCES_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "_resources")
@@ -95,8 +96,18 @@ def save_choice(choice):
 _kokoro = [None]
 _piper_cache = {}
 
+# The app warms the voice on a background thread while the user is already
+# free to click Speak, so two threads can reach here at once. Without the
+# lock they would each build their own copy of the engine.
+_engine_lock = threading.Lock()
+
 
 def _kokoro_engine(num_threads=None):
+    with _engine_lock:
+        return _build_kokoro(num_threads)
+
+
+def _build_kokoro(num_threads=None):
     if _kokoro[0] is None:
         import sherpa_onnx
         if num_threads is None:
@@ -121,10 +132,11 @@ def _kokoro_engine(num_threads=None):
 
 
 def _piper_engine(fname):
-    if fname not in _piper_cache:
-        from piper import PiperVoice
-        _piper_cache[fname] = PiperVoice.load(os.path.join(PIPER_DIR, fname))
-    return _piper_cache[fname]
+    with _engine_lock:
+        if fname not in _piper_cache:
+            from piper import PiperVoice
+            _piper_cache[fname] = PiperVoice.load(os.path.join(PIPER_DIR, fname))
+        return _piper_cache[fname]
 
 
 def synthesize(text, choice=None, speed=1.0):

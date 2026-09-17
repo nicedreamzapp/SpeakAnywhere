@@ -101,6 +101,7 @@ _update_progress(30, "Loading speech recognition...")
 import sherpa_onnx
 import json
 import queue
+import re
 import voices
 
 _update_progress(50, "Loading video system...")
@@ -284,10 +285,19 @@ load_thread.start()
 
 # Warm the chosen text-to-speech voice on the same trick - synthesising one
 # short string builds the engine, so the first real "Speak Clipboard" is not
-# the one that pays for loading it.
+# the one that pays for loading it. This one is NOT waited on: dictation is
+# what the window is for, and nothing on screen needs the voice, so it keeps
+# warming behind the open app. voices.py takes a lock around building the
+# engine, so a Speak click landing mid-warm waits rather than building a
+# second copy.
 voice_loaded = [False]
 voice_result = {}
 def load_voice():
+    # Hold off until the speech model is in. Both loads are CPU bound on the
+    # same cores, and running them together only slows the one the window is
+    # actually waiting on.
+    while not model_loaded[0]:
+        time.sleep(0.02)
     try:
         voices.synthesize("Ready.", speed=1.0)
     except BaseException as e:
@@ -297,33 +307,48 @@ def load_voice():
 voice_thread = threading.Thread(target=load_voice, daemon=True)
 voice_thread.start()
 
-# Wait for video to finish
-while not video_finished[0]:
-    splash.update()
-    time.sleep(0.01)
+def asr_model():
+    """The speech recogniser, waited on only by whoever actually needs it.
 
-cap.release()
-
-# Wait for model if needed
-if not model_loaded[0]:
-    loading_text.config(text="Almost ready...")
-    splash.update()
+    The window no longer holds for this. Nothing on screen depends on the
+    recogniser - Speak Clipboard never touches it, and dictation captures audio
+    the moment the microphone opens and only needs it to decode what was
+    captured. So the load runs behind the open app and the first decode waits
+    out whatever is left of it, which is usually nothing.
+    """
     while not model_loaded[0]:
+        time.sleep(0.05)
+    return model[0]
+
+
+# The splash is only cover for work that is actually in the way, and after the
+# above that is the rest of this file: enumerating audio devices and building
+# the window. It stays up through all of it and is torn down just before the
+# real window appears - see close_splash() further down.
+MIN_SPLASH_SECONDS = 1.2
+_splash_started = time.time()
+
+
+def close_splash():
+    """End the splash, padded out to a length that reads as a launch.
+
+    Nothing is waited on here any more, so without the floor the video and its
+    audio would appear and vanish inside a couple of frames - which looks like
+    a glitch rather than an app starting. Whatever setup happened while the
+    splash was up counts towards it, so the pad is usually a fraction of it.
+    """
+    while time.time() - _splash_started < MIN_SPLASH_SECONDS:
         splash.update()
         time.sleep(0.01)
 
-model = model[0]
-
-# Wait for the voice only if it has not already finished during the video
-if not voice_loaded[0]:
-    loading_text.config(text="Loading voice...")
-    splash.update()
-    while not voice_loaded[0]:
-        splash.update()
-        time.sleep(0.01)
-
-if 'error' in voice_result:
-    raise voice_result['error']
+    # Stop the video wherever it happens to be - play_video stops rescheduling
+    # itself once this flag is set.
+    video_finished[0] = True
+    try:
+        pygame.mixer.music.fadeout(200)
+    except:
+        pass
+    cap.release()
 
 # ============================================================================
 # SETUP DIALOG - First run options
@@ -479,6 +504,10 @@ dictation_active = False
 stream = None
 is_speaking = False
 stop_playback = False
+# Bumped every time Speak Clipboard is pressed. A read in progress compares
+# the number it started with against this one and quits the moment it changes,
+# so hitting Speak twice cannot leave two voices talking over each other.
+speak_generation = 0
 last_click_time = 0
 DEBOUNCE_SECONDS = 0.3
 current_speed = 1.0
@@ -701,19 +730,97 @@ def create_mic_button(size, color, glow=False):
 # FUNCTIONS
 # ============================================================================
 
-def generate_speech_piper(text, output_file):
-    """Render text with whichever voice is selected in the picker.
+# Speak Clipboard renders in pieces and starts talking on the first one.
+# Rendering the whole clipboard first meant the wait before any sound grew with
+# the length of the text - measured at roughly half the spoken duration, so a
+# two minute article sat silent for over a minute. The engine runs faster than
+# the audio plays, so once the first piece is out the rest stays ahead of the
+# listener and the joins are never heard. Only the first piece is ever waited
+# on, which is why it is kept short; the rest are long enough to keep sentence
+# rhythm intact.
+FIRST_CHUNK_CHARS = 60      # the opener is the only piece anyone waits on
+CHUNK_CHARS = 400           # ceiling once playback is comfortably ahead
+CHUNK_GROWTH = 1.5          # see speech_chunks - 1.75 is the break-even point
+LONG_PART_CHARS = 150       # past this a single sentence gets broken at commas
+HEAD_CHARS = 250            # the opening, where a stall would actually be heard
 
-    Kept under its old name because the callers have not changed. The engine
-    behind it has: voices.synthesize dispatches to Kokoro or Piper depending
-    on the saved choice, and applies speed the right way for each - Kokoro has
-    a real speed control, Piper only has playback rate.
+# Break after sentence enders and at blank lines. The lookbehind keeps the
+# punctuation attached to the sentence it belongs to.
+_SENTENCE_BREAK = re.compile(r'(?<=[.!?:;])\s+|\n+')
+# Fallback breaks inside an overlong sentence: after a comma or bracket, or at
+# a spaced dash.
+_CLAUSE_BREAK = re.compile(r'(?<=[,)\]])\s+|\s+[-–—]\s+')
+
+
+def _atoms(text):
+    """The smallest units worth synthesising on their own.
+
+    Sentences, except near the start. In the opening there is no buffer of
+    rendered audio to coast on, so a single long sentence there stalls the read
+    - it gets broken at its commas instead. A breath at a comma is barely
+    noticeable; a silence right after the first sentence is. Past the opening
+    the buffer is deep enough that whole sentences fit comfortably, and they are
+    left alone so chunk edges land where a reader would pause anyway.
     """
-    audio_bytes, sample_rate = voices.synthesize(text, speed=current_speed)
-    voices.write_wav(output_file, audio_bytes, sample_rate)
+    atoms = []
+    seen = 0
+    for sentence in _SENTENCE_BREAK.split(text):
+        sentence = sentence.strip()
+        if not sentence:
+            continue
+        threshold = FIRST_CHUNK_CHARS if seen < HEAD_CHARS else LONG_PART_CHARS
+        seen += len(sentence)
+        if len(sentence) <= threshold:
+            atoms.append(sentence)
+            continue
+        buf = ""
+        for clause in _CLAUSE_BREAK.split(sentence):
+            clause = clause.strip()
+            if not clause:
+                continue
+            if buf and len(buf) + 1 + len(clause) > threshold:
+                atoms.append(buf)
+                buf = clause
+            else:
+                buf = f"{buf} {clause}".strip()
+        if buf:
+            atoms.append(buf)
+    return atoms
+
+
+def speech_chunks(text):
+    """Pack text into synthesis passes that grow as playback gets ahead.
+
+    The opener is short because it is the only piece anybody waits on. Each
+    pass after it may be half again as long as the last, which is the part that
+    matters: the engine renders about 1.75x faster than speech plays, so every
+    pass banks a little more finished audio than it spends. Growing slower than
+    that keeps the buffer ahead of the listener, and within a few passes whole
+    paragraphs go through at once with no gap ever reaching the speaker. Jumping
+    straight to full size instead would leave the renderer eight seconds behind
+    after a two second opener - a stall right where it is most obvious.
+
+    Atoms are only ever split apart, never rewritten, and each pass is handed to
+    the engine as one string, so a sentence that got broken at a comma is still
+    synthesised as a whole unless a chunk boundary genuinely falls there.
+    """
+    chunks = []
+    buf = ""
+    limit = FIRST_CHUNK_CHARS
+    for atom in _atoms(text):
+        if buf and len(buf) + 1 + len(atom) > limit:
+            chunks.append(buf)
+            buf = atom
+            limit = min(CHUNK_CHARS, int(limit * CHUNK_GROWTH))
+        else:
+            buf = f"{buf} {atom}".strip()
+    if buf:
+        chunks.append(buf)
+    return chunks
+
 
 def speak_clipboard():
-    global speaking_thread, is_speaking, stop_playback
+    global speaking_thread, is_speaking, stop_playback, speak_generation
 
     text = pyperclip.paste().strip()
     if not text:
@@ -729,49 +836,95 @@ def speak_clipboard():
         time.sleep(0.1)
 
     # Reset state
+    speak_generation += 1
+    my_generation = speak_generation
     is_speaking = True
     stop_playback = False
     update_speak_button()
 
+    def cancelled():
+        return stop_playback or speak_generation != my_generation
+
     def run():
-        global is_speaking, stop_playback
+        global is_speaking
+        out = None
         try:
-            # Generate speech using Piper TTS (offline neural voice)
-            generate_speech_piper(text, temp_audio_file)
+            chunks = speech_chunks(text)
 
-            if stop_playback:
-                is_speaking = False
-                update_speak_button()
-                return
+            # Render ahead of playback. The small queue is the point: it stops
+            # a long paste from being rendered into memory all at once, and it
+            # keeps the renderer from running so far ahead that Stop has to
+            # wait for work nobody will hear.
+            rendered = queue.Queue(maxsize=3)
 
-            # Read the WAV file
-            with wave.open(temp_audio_file, 'rb') as wf:
-                sample_rate = wf.getframerate()
-                audio_data = wf.readframes(wf.getnframes())
-                audio_array = np.frombuffer(audio_data, dtype=np.int16)
+            def hand_off(item):
+                """Put, but stay responsive to Stop while the queue is full."""
+                while not cancelled():
+                    try:
+                        rendered.put(item, timeout=0.2)
+                        return True
+                    except queue.Full:
+                        continue
+                return False
 
-            # Play using sounddevice with selected output device
-            device_id = SPEAKER_INDEX if SPEAKER_INDEX >= 0 else None
-            sd.play(audio_array, samplerate=sample_rate, device=device_id)
-
-            # Wait for playback to finish or be stopped
-            while True:
-                if stop_playback:
-                    sd.stop()
-                    break
-                try:
-                    stream = sd.get_stream()
-                    if not stream.active:
+            def render():
+                for chunk in chunks:
+                    if cancelled():
                         break
-                except:
+                    try:
+                        audio = voices.synthesize(chunk, speed=current_speed)
+                    except BaseException as e:
+                        print(f"Speech error: {e}")
+                        break
+                    if not hand_off(audio):
+                        return
+                hand_off(None)      # end of text
+
+            threading.Thread(target=render, daemon=True).start()
+
+            device_id = SPEAKER_INDEX if SPEAKER_INDEX >= 0 else None
+            while not cancelled():
+                try:
+                    item = rendered.get(timeout=0.2)
+                except queue.Empty:
+                    continue
+                if item is None:
                     break
-                time.sleep(0.1)
+                pcm, sample_rate = item
+                if out is None:
+                    # One stream for the whole read, opened on the first
+                    # piece's rate, so chunk joins are silent rather than a
+                    # click and a gap per sentence.
+                    out = sd.OutputStream(samplerate=sample_rate, channels=1,
+                                          dtype='int16', device=device_id)
+                    out.start()
+                audio = np.frombuffer(pcm, dtype=np.int16)
+                # Written in fifths of a second because write() blocks for as
+                # long as the audio handed to it - Stop should be immediate,
+                # not "at the end of this paragraph".
+                step = max(1, sample_rate // 5)
+                for i in range(0, len(audio), step):
+                    if cancelled():
+                        break
+                    out.write(audio[i:i + step])
 
         except Exception as e:
             print(f"Speech error: {e}")
 
-        is_speaking = False
-        update_speak_button()
+        if out is not None:
+            try:
+                if cancelled():
+                    out.abort()     # drop whatever is still buffered
+                else:
+                    out.stop()      # let the last words finish
+                out.close()
+            except:
+                pass
+
+        # A newer press already owns the button and the state - leave them be.
+        if speak_generation == my_generation:
+            is_speaking = False
+            update_speak_button()
 
     speaking_thread = threading.Thread(target=run, daemon=True)
     speaking_thread.start()
@@ -820,7 +973,6 @@ def dictation_loop():
         dictation_active = False
         return
 
-    recognizer = model
     vad = make_vad()
 
     # Decoding a phrase takes about as long as saying it, so it cannot happen on
@@ -830,6 +982,10 @@ def dictation_loop():
     last_speech_time = [time.time()]
 
     def decode_worker():
+        # Blocks here, not at the microphone, if the recogniser is still
+        # loading - speech from the first seconds waits in the queue instead of
+        # being lost.
+        recognizer = asr_model()
         while True:
             segment = segment_queue.get()
             if segment is None:
@@ -940,6 +1096,7 @@ def do_drag(event):
 # ============================================================================
 # MAIN WINDOW - COMPACT UI WITH ROUNDED CORNERS
 # ============================================================================
+close_splash()
 splash.destroy()
 
 root = tk.Tk()
