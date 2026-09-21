@@ -53,3 +53,7 @@ grok-video-*.mp4
 splash_audio.mp3
 SpeakAnywhere.ico
 SpeakAnywhere.bat
+.buildvenv/
+build/
+dist/
+build-windows.log
