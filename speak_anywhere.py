@@ -222,7 +222,8 @@ AUDIO_FILE = os.path.join(RESOURCES_DIR, "splash_audio.mp3")
 pygame.mixer.init()
 try:
     pygame.mixer.music.load(AUDIO_FILE)
-    pygame.mixer.music.set_volume(0.4)
+    # A build check (SPEAKANYWHERE_SMOKE) plays the splash silently, so testing makes no sound.
+    pygame.mixer.music.set_volume(0.0 if os.environ.get("SPEAKANYWHERE_SMOKE") else 0.4)
     pygame.mixer.music.play(0)  # Play once
 except:
     pass
