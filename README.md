@@ -349,7 +349,22 @@ Measured on an **11th-gen Core i7-1185G7** — 4 cores, no discrete GPU:
 
 ---
 
-## 📦 Setup
+## ⬇️ Download (Windows 10 and 11)
+
+**[Download Speak Anywhere for Windows](https://github.com/nicedreamzapp/SpeakAnywhere/releases/latest/download/Speak-Anywhere-windows.zip)**
+
+Unzip it, open the **Speak Anywhere** folder and run **Speak Anywhere.exe**. The first time, it
+downloads its speech model and voices once (about **3 GB**, with a progress bar) into
+`%LOCALAPPDATA%\SpeakAnywhere\models`. After that it starts in seconds and runs offline.
+**Voice Picker.exe** in the same folder lets you audition voices and keep one.
+
+If Windows shows a blue "protected your PC" box, click **More info**, then **Run anyway**.
+
+<br>
+
+---
+
+## 📦 Setup from source
 
 ```bash
 git clone https://github.com/nicedreamzapp/SpeakAnywhere.git
@@ -482,16 +497,14 @@ SpeakAnywhere/
 
 ---
 
-## 🔨 Building an executable
+## 🔨 Building the download
 
-```bash
-pip install pyinstaller
-pyinstaller --onefile --noconsole \
-  --icon="_resources\SpeakAnywhere.ico" \
-  --name="SpeakAnywhere" \
-  --collect-all sherpa_onnx --collect-all cv2 \
-  speak_anywhere.py
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File build-windows.ps1
 ```
+
+It builds in its own clean environment and writes `dist\Speak-Anywhere-windows.zip`: one folder
+with **Speak Anywhere.exe** and **Voice Picker.exe**. The models are left out and fetched on first run.
 
 <br>
 
