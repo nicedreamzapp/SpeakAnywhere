@@ -132,8 +132,11 @@ FORCE_MICROPHONE_INDEX = None
 # Already determined earlier for loading screen
 APP_DIR = _APP_DIR
 
-# Resources folder (hidden from user)
-RESOURCES_DIR = os.path.join(APP_DIR, "_resources")
+# The app's own small files (icon, splash). The speech models can live elsewhere: the
+# downloaded app keeps them in LocalAppData and fetches them on first run (models.py).
+import models
+RESOURCES_DIR = models.bundle_dir()
+MODELS_DIR = models.models_dir()
 
 # Config file location - use AppData so it persists even if app is moved/run from USB
 def get_config_path():
@@ -165,8 +168,8 @@ VIDEO_FILE = os.path.join(RESOURCES_DIR, "splash_video.mp4")
 # Speech recognition: NVIDIA Parakeet TDT 0.6B v2, full precision ONNX, run on
 # CPU through sherpa-onnx. Silero decides what is speech so the recognizer only
 # ever sees real utterances instead of room noise.
-MODEL_PATH = os.path.join(RESOURCES_DIR, "parakeet-tdt-0.6b-v2")
-VAD_MODEL_PATH = os.path.join(RESOURCES_DIR, "silero_vad.onnx")
+MODEL_PATH = os.path.join(MODELS_DIR, "parakeet-tdt-0.6b-v2")
+VAD_MODEL_PATH = os.path.join(MODELS_DIR, "silero_vad.onnx")
 VAD_WINDOW = 512         # silero expects 512-sample windows at 16 kHz
 
 
@@ -192,6 +195,20 @@ ASR_THREADS = _asr_threads()
 # ============================================================================
 # VIDEO SPLASH SCREEN WITH AUDIO
 # ============================================================================
+# First run of the downloaded app: fetch the speech models (about 3 GB, once).
+if models.missing():
+    try:
+        models.ensure(_update_progress)
+    except Exception as e:
+        from tkinter import messagebox
+        _loading_root.attributes('-topmost', False)
+        messagebox.showerror(
+            "Speak Anywhere",
+            "Speak Anywhere needs to download its voices once (about 3 GB), and the download "
+            f"didn't finish:\n\n{e}\n\nCheck the internet connection and open it again. "
+            "It picks up where it left off.")
+        sys.exit(1)
+
 # Close the loading screen, switch to video splash
 _loading_root.destroy()
 
@@ -1289,6 +1306,22 @@ def update_mic_button(active):
         root.update()
     except:
         pass
+
+# SPEAKANYWHERE_SMOKE=<file>: a build check. Once the recognizer and the voice have both
+# loaded, write what happened to the file and quit, so a packaged build can be tested
+# without anyone clicking.
+_smoke = os.environ.get("SPEAKANYWHERE_SMOKE")
+if _smoke:
+    def _smoke_check():
+        if model_loaded[0] and voice_loaded[0]:
+            with open(_smoke, "w") as f:
+                f.write(json.dumps({"recognizer": model[0] is not None,
+                                    "voice_error": str(voice_result.get("error") or ""),
+                                    "models_dir": MODELS_DIR}))
+            root.destroy()
+        else:
+            root.after(250, _smoke_check)
+    root.after(250, _smoke_check)
 
 root.mainloop()
 pa.terminate()

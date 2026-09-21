@@ -8,6 +8,7 @@ from tkinter import ttk
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import numpy as np
 import sounddevice as sd
+import models
 import voices
 
 SAMPLE_LINE = ("Hey Matt. Divine Tribe order two zero five nine one two "
@@ -24,7 +25,7 @@ root.title("Speak Anywhere - Voices")
 root.configure(bg=BG)
 root.geometry("560x620")
 try:
-    root.iconbitmap(os.path.join(voices.RESOURCES_DIR, "SpeakAnywhere.ico"))
+    root.iconbitmap(os.path.join(models.bundle_dir(), "SpeakAnywhere.ico"))
 except Exception:
     pass
 

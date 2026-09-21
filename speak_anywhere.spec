@@ -1,102 +1,33 @@
 # -*- mode: python ; coding: utf-8 -*-
-import os
-import sys
+# Builds the Windows download: one folder holding Speak Anywhere.exe and Voice Picker.exe,
+# sharing one copy of Python and the libraries. The speech models are NOT bundled (about
+# 3 GB); the app fetches them on first run into %LOCALAPPDATA%\SpeakAnywhere\models.
+#   pyinstaller --noconfirm speak_anywhere.spec   ->  dist\Speak Anywhere\
+from PyInstaller.utils.hooks import collect_all
 
-# Find vosk package location for DLLs
-import vosk
-vosk_path = os.path.dirname(vosk.__file__)
+datas, binaries, hiddenimports = [], [], []
+for pkg in ("sherpa_onnx", "cv2"):
+    d, b, h = collect_all(pkg)
+    datas += d; binaries += b; hiddenimports += h
 
-# Find piper package location
-import piper
-piper_path = os.path.dirname(piper.__file__)
+# Only the app's own small files; models stay out of the package.
+datas += [
+    ("_resources/SpeakAnywhere.ico", "_resources"),
+    ("_resources/splash.png", "_resources"),
+    ("_resources/splash_audio.mp3", "_resources"),
+    ("_resources/splash_video.mp4", "_resources"),
+]
+excludes = ["torch", "torchvision", "torchaudio", "tensorflow", "keras", "scipy", "pandas",
+            "matplotlib", "sympy", "IPython", "jupyter", "notebook", "pytest", "vosk", "piper"]
 
-a = Analysis(
-    ['speak_anywhere.py'],
-    pathex=[],
-    binaries=[
-        # Vosk DLLs - required for speech recognition
-        (os.path.join(vosk_path, 'libvosk.dll'), 'vosk'),
-        (os.path.join(vosk_path, 'libgcc_s_seh-1.dll'), 'vosk'),
-        (os.path.join(vosk_path, 'libstdc++-6.dll'), 'vosk'),
-        (os.path.join(vosk_path, 'libwinpthread-1.dll'), 'vosk'),
-    ],
-    datas=[
-        ('_resources', '_resources'),
-        # Include vosk python files
-        (vosk_path, 'vosk'),
-    ],
-    hiddenimports=[
-        'piper',
-        'piper.voice',
-        'onnxruntime',
-        'numpy',
-        'sounddevice',
-        'vosk',
-        'pyaudio',
-        'PIL',
-        'PIL.Image',
-        'PIL.ImageTk',
-        'PIL.ImageDraw',
-        'PIL.ImageFilter',
-        'cv2',
-        'pygame',
-        'pygame.mixer',
-        'pyperclip',
-        'pyautogui',
-        'winshell',
-        'win32com',
-        'win32com.client',
-        'cffi',
-        'vosk.vosk_cffi',
-    ],
-    hookspath=[],
-    hooksconfig={},
-    runtime_hooks=[],
-    excludes=[
-        # Exclude heavy ML frameworks not needed by the app
-        'torch',
-        'torchvision',
-        'torchaudio',
-        'tensorflow',
-        'keras',
-        'scipy',
-        'pandas',
-        'matplotlib',
-        'sympy',
-        'h5py',
-        'imageio',
-        'IPython',
-        'jupyter',
-        'notebook',
-        'pytest',
-        'sphinx',
-        'docutils',
-        'lxml',
-        'coremltools',
-    ],
-    noarchive=False,
-    optimize=0,
-)
-pyz = PYZ(a.pure)
+app = Analysis(["speak_anywhere.py"], datas=datas, binaries=binaries,
+               hiddenimports=hiddenimports + ["models", "voices"], excludes=excludes)
+picker = Analysis(["voice_picker.pyw"], hiddenimports=["models", "voices"], excludes=excludes)
 
-exe = EXE(
-    pyz,
-    a.scripts,
-    a.binaries,
-    a.datas,
-    [],
-    name='speak_anywhere',
-    debug=False,
-    bootloader_ignore_signals=False,
-    strip=False,
-    upx=True,
-    upx_exclude=[],
-    runtime_tmpdir=None,
-    console=False,
-    disable_windowed_traceback=False,
-    argv_emulation=False,
-    target_arch=None,
-    codesign_identity=None,
-    entitlements_file=None,
-    icon='_resources/SpeakAnywhere.ico',
-)
+app_exe = EXE(PYZ(app.pure), app.scripts, [], exclude_binaries=True, name="Speak Anywhere",
+              console=False, icon="_resources/SpeakAnywhere.ico")
+picker_exe = EXE(PYZ(picker.pure), picker.scripts, [], exclude_binaries=True, name="Voice Picker",
+                 console=False, icon="_resources/SpeakAnywhere.ico")
+
+COLLECT(app_exe, app.binaries, app.datas, picker_exe, picker.binaries, picker.datas,
+        name="Speak Anywhere")

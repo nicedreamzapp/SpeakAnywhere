@@ -15,7 +15,9 @@ import os
 import threading
 import wave
 
-RESOURCES_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "_resources")
+import models
+
+RESOURCES_DIR = models.models_dir()
 KOKORO_DIR = os.path.join(RESOURCES_DIR, "kokoro-multi-lang-v1_0")
 PIPER_DIR = os.path.join(RESOURCES_DIR, "piper")
 
