@@ -9,6 +9,14 @@
 
 <br>
 
+A Windows desktop app that types what you say into any window and reads copied text aloud,
+using speech models that run on your own CPU.
+
+**[⬇️ Download for Windows](https://github.com/nicedreamzapp/SpeakAnywhere/releases/latest/download/Speak-Anywhere-windows.zip)**
+· [🔥 Before and after](#-the-big-change-vosk-is-gone) · [📈 Measured numbers](#-performance)
+
+<br>
+
 ![Offline](https://img.shields.io/badge/100%25-OFFLINE-2ea44f?style=for-the-badge)
 ![Windows](https://img.shields.io/badge/Windows-10%20%7C%2011-0078D6?style=for-the-badge&logo=windows&logoColor=white)
 ![Python](https://img.shields.io/badge/Python-3.11-3776AB?style=for-the-badge&logo=python&logoColor=white)
@@ -33,8 +41,11 @@
 
 **🚀 Start here**
 - [⚡ What it does](#-what-it-does)
-- [📦 Setup](#-setup)
-- [🎛️ Using it](#-using-it)
+- [👤 What I built](#-what-i-built)
+- [⬇️ Download](#️-download-windows-10-and-11)
+- [📦 Setup from source](#-setup-from-source)
+- [🎛️ Using it](#️-using-it)
+- [🚧 Known limits](#-known-limits)
 
 </td>
 <td valign="top" width="33%">
@@ -42,16 +53,17 @@
 **🔬 What changed**
 - [🔥 Vosk is gone](#-the-big-change-vosk-is-gone)
 - [📊 Speed & memory](#-and-it-got-dramatically-faster)
-- [🗣️ The voice](#-the-voice)
+- [🗣️ The voice](#️-the-voice)
 
 </td>
 <td valign="top" width="33%">
 
 **🛠️ Under the hood**
 - [🔊 How the reader works](#-how-the-reader-actually-works)
-- [⚙️ How dictation works](#-how-dictation-actually-works)
+- [⚙️ How dictation works](#️-how-dictation-actually-works)
 - [📈 Performance](#-performance)
 - [📁 Structure](#-project-structure)
+- [🔨 Building the download](#-building-the-download)
 - [🙏 Built on](#-built-on)
 
 </td>
@@ -92,12 +104,33 @@ in a natural neural voice.
 ### **Stay private**
 
 Every model runs locally.
-The app **never opens a
-network connection.**
+After the one-time model
+download, **nothing goes
+over the network.**
 
 </td>
 </tr>
 </table>
+
+<br>
+
+---
+
+## 👤 What I built
+
+Speak Anywhere is written by **Matt Macosko**. The speech models and runtime are upstream
+projects (see [Built on](#-built-on)); the app around them is this repo:
+
+- 🎤 **Dictation pipeline**: microphone ▸ Silero VAD ▸ a decoder thread ▸ keystrokes, with nothing dropped during a decode or on stop. `dictation_loop()` in [`speak_anywhere.py`](speak_anywhere.py)
+- 🔊 **Streaming clipboard reader**: growing chunks, a 3-deep render queue and one gapless output stream. `speech_chunks()` and `speak_clipboard()` in [`speak_anywhere.py`](speak_anywhere.py)
+- ⏱️ **Fast startup**: the window opens while the recognizer loads in the background, and the thread count is picked per machine. `load_model()`, `asr_model()` and `_asr_threads()` in [`speak_anywhere.py`](speak_anywhere.py)
+- 🗣️ **Voice catalog and synthesis** over Kokoro and Piper, with the saved choice. [`voices.py`](voices.py)
+- 🎚️ **Voice picker** window. [`voice_picker.pyw`](voice_picker.pyw)
+- ⬇️ **First-run model download** with a progress bar, written through `.part` files so a cut-off download is never mistaken for a finished one. [`models.py`](models.py)
+- 📦 **Windows packaging**: two exes in one folder, models left out, plus a no-click build check (`SPEAKANYWHERE_SMOKE`). [`speak_anywhere.spec`](speak_anywhere.spec), [`build-windows.ps1`](build-windows.ps1)
+
+The recognizer (NVIDIA Parakeet), voices (Kokoro-82M, Piper), speech detector (Silero VAD)
+and runtime (sherpa-onnx) are not mine.
 
 <br>
 
@@ -183,12 +216,13 @@ was **already a dependency**, so this added **zero** new ones.
 |---:|:---:|:---:|
 | 🧬 **Parameters** | ~20 M | **82 M** |
 | 🎭 **Naturalness** | flat, synthetic | **markedly better** |
-| ⚡ **Speed on CPU** | fast | **~1.5x realtime** |
+| ⚡ **Speed on CPU** | fast | **~1.75x realtime** |
 | 📅 **Generation** | older | **current** |
 
 </div>
 
-Piper **stays available** rather than deleted. A few of its voices hold up fine.
+Piper **stays available** rather than deleted. A few of its voices hold up fine. It is
+source-only: the Windows download leaves Piper out, and its voice files are not in this repo.
 
 <br>
 
@@ -200,6 +234,7 @@ python voice_picker.pyw
 
 **Click a voice** ▸ hear it read a sample line ▸ **Use this voice**.
 Saved to `%APPDATA%/SpeakAnywhere/voice.json`, picked up on next launch.
+Until you pick one, it reads in **Michael** (`am_michael`).
 
 > [!TIP]
 > 🧹 **The list is short on purpose.** Kokoro ships **54 voices** and publishes a
@@ -366,6 +401,9 @@ If Windows shows a blue "protected your PC" box, click **More info**, then **Run
 
 ## 📦 Setup from source
 
+Needs **Windows 10 or 11** and **Python 3.11** (`requirements.txt` includes `pywin32` and
+`winshell`). The commands below are bash, so run them in Git Bash.
+
 ```bash
 git clone https://github.com/nicedreamzapp/SpeakAnywhere.git
 cd SpeakAnywhere
@@ -373,6 +411,9 @@ pip install -r requirements.txt
 ```
 
 ⬇️ The models are **not** in this repo — they're about **3 GB** together.
+
+The steps below fetch them by hand. If you skip them, the app downloads the same files into
+`_resources` on first launch, with a progress bar ([`models.py`](models.py)).
 
 <details>
 <summary><b>🎧 &nbsp;Download the speech recognizer</b> &nbsp;·&nbsp; <code>2.5 GB</code></summary>
@@ -446,11 +487,11 @@ python speak_anywhere.py
 
 | | Step | |
 |:--:|:--|:--|
-| **1️⃣** | **Launch** | the window is up in about 2 seconds |
+| **1️⃣** | **Launch** | the window is up in about 2.6 seconds once the models are on disk |
 | **2️⃣** | 🎤 **Tap the mic and talk** | tap again to stop |
 | **3️⃣** | 🔊 **Copy text, tap Speak Clipboard** | hear it read back |
 | **4️⃣** | 🎚️ **Open the voice picker** | keep the one you like |
-| **5️⃣** | ⏩ **Adjust** | speed `0.5x`–`2.0x`, mic and speaker both selectable |
+| **5️⃣** | ⏩ **Adjust** | speed `0.5x`, `1x`, `1.5x` or `2x`, mic and speaker both selectable |
 
 </div>
 
@@ -473,6 +514,20 @@ python speak_anywhere.py
 
 ---
 
+## 🚧 Known limits
+
+- 🪟 **Windows only.** It uses `pywin32`, `winshell` and `%APPDATA%`; there is no Mac or Linux build.
+- ⏳ **Text lands after each phrase**, not word by word (see the tradeoff above).
+- 🌐 **The first run needs internet** for the one-time ~3 GB model download. Files that finished
+  are kept if it is cut off; the file in progress starts over.
+- 🔈 **Piper voices are source-only** and you supply the files in `_resources/piper` yourself.
+- ↩️ **Saying "new line" presses Enter and drops the rest of that phrase.**
+- 🛡️ **The download is not code-signed**, which is why Windows shows the "protected your PC" box.
+
+<br>
+
+---
+
 ## 📁 Project structure
 
 ```
@@ -480,11 +535,15 @@ SpeakAnywhere/
 ├── 📄 speak_anywhere.py            # the application
 ├── 🗣️ voices.py                    # voice catalog, saved choice, synthesis
 ├── 🎚️ voice_picker.pyw             # audition voices and pick one
+├── ⬇️ models.py                    # where models live, first-run download
+├── 📦 speak_anywhere.spec          # PyInstaller build of both exes
+├── 🔨 build-windows.ps1            # builds the Windows zip
 ├── 📋 requirements.txt
 ├── ⚖️ LICENSE.txt
 ├── 🙏 CREDITS.md
 └── 📦 _resources/
     ├── 🖼️ SpeakAnywhere.ico
+    ├── 🖼️ splash.png
     ├── 🎬 splash_video.mp4
     ├── 🎵 splash_audio.mp3
     ├── 🧠 silero_vad.onnx           ⬇️ downloaded
@@ -528,7 +587,7 @@ with **Speak Anywhere.exe** and **Voice Picker.exe**. The models are left out an
 
 </div>
 
-Full attribution in [**CREDITS.md**](CREDITS.md).
+[**CREDITS.md**](CREDITS.md) also credits tools earlier versions used (Vosk, edge-tts).
 
 <br>
 
