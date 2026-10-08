@@ -605,7 +605,7 @@ Proprietary software — see [**LICENSE.txt**](LICENSE.txt).
 ### 👤 Author
 
 **Matt Macosko** · Nice Dreamz LLC
-[info@nicedreamz.wholesale.com](mailto:info@nicedreamz.wholesale.com)
+[info@nicedreamzwholesale.com](mailto:info@nicedreamzwholesale.com)
 
 <br>
 
