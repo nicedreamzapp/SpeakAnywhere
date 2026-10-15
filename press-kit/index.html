@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Speak Anywhere: offline dictation and read-aloud for Windows</title>
+<meta name="description" content="Speak Anywhere is a Windows app that types what you say into any window and reads copied text aloud. The speech models run on your own CPU, offline, with no account and no API key.">
+<!-- TODO-VERIFY: final public URL of this page on nicedreamzwholesale.com -->
+<link rel="canonical" href="https://nicedreamzwholesale.com/software/">
+<link rel="icon" href="../_resources/SpeakAnywhere.ico">
+
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Nice Dreamz Software">
+<meta property="og:title" content="Speak Anywhere: offline dictation and read-aloud for Windows">
+<meta property="og:description" content="Talk into any app, or have copied text read back. Speech recognition and voices run on your own CPU. Nothing leaves your machine after the one-time model download.">
+<meta property="og:url" content="https://nicedreamzwholesale.com/software/">
+<!-- TODO-VERIFY: only image in the repo is the 320x140 splash; a 1200x630 share image would display better -->
+<meta property="og:image" content="https://raw.githubusercontent.com/nicedreamzapp/SpeakAnywhere/main/_resources/splash.png">
+<meta property="og:image:width" content="320">
+<meta property="og:image:height" content="140">
+<meta property="og:image:alt" content="Speak Anywhere splash screen">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Speak Anywhere: offline dictation and read-aloud for Windows">
+<meta name="twitter:description" content="Talk into any app, or have copied text read back. Runs offline on your own CPU.">
+<meta name="twitter:image" content="https://raw.githubusercontent.com/nicedreamzapp/SpeakAnywhere/main/_resources/splash.png">
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "Speak Anywhere",
+  "applicationCategory": "UtilitiesApplication",
+  "operatingSystem": "Windows 10, Windows 11",
+  "softwareVersion": "1.1.0",
+  "datePublished": "2026-09-21",
+  "description": "A Windows desktop app that types what you say into whatever window has focus and reads copied text aloud, using speech models that run locally on the CPU.",
+  "downloadUrl": "https://github.com/nicedreamzapp/SpeakAnywhere/releases/latest/download/Speak-Anywhere-windows.zip",
+  "url": "https://nicedreamzwholesale.com/software/",
+  "image": "https://raw.githubusercontent.com/nicedreamzapp/SpeakAnywhere/main/_resources/splash.png",
+  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+  "author": { "@type": "Person", "name": "Matt Macosko" },
+  "publisher": { "@type": "Organization", "name": "Nice Dreamz LLC", "email": "info@nicedreamzwholesale.com" }
+}
+</script>
+
+<style>
+:root{
+  --bg:#f7f8fb; --surface:#ffffff; --text:#14161f; --muted:#555b6e; --line:#dde1ea;
+  --accent:#0a7fa8; --accent-ink:#ffffff; --ok:#11805a; --todo:#a35a00; --code:#eef1f6;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#12131c; --surface:#1a1a2e; --text:#eceef5; --muted:#a6abbd; --line:#2d2d44;
+    --accent:#00d4ff; --accent-ink:#0b0c14; --ok:#10b981; --todo:#f0a646; --code:#23243a;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#12131c; --surface:#1a1a2e; --text:#eceef5; --muted:#a6abbd; --line:#2d2d44;
+  --accent:#00d4ff; --accent-ink:#0b0c14; --ok:#10b981; --todo:#f0a646; --code:#23243a;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--text);
+  font:16px/1.6 "Segoe UI",system-ui,-apple-system,Roboto,sans-serif;overflow-wrap:anywhere}
+img{max-width:100%;height:auto;display:block}
+a{color:var(--accent)}
+code{background:var(--code);padding:.1em .35em;border-radius:4px;font-size:.92em}
+.wrap{max-width:960px;margin:0 auto;padding:0 16px}
+header.hero{padding:48px 0 32px;border-bottom:1px solid var(--line)}
+.eyebrow{font-size:.85rem;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:0 0 8px}
+h1{font-size:clamp(2rem,7vw,3rem);line-height:1.1;margin:0 0 12px}
+.pitch{font-size:clamp(1.1rem,3.6vw,1.35rem);margin:0 0 20px;max-width:40ch}
+.cta{display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin:0 0 12px}
+.btn{display:inline-block;background:var(--accent);color:var(--accent-ink);text-decoration:none;
+  font-weight:600;padding:12px 18px;border-radius:10px}
+.btn:focus-visible,a:focus-visible,summary:focus-visible{outline:3px solid var(--accent);outline-offset:3px}
+.small{font-size:.9rem;color:var(--muted)}
+.badges{display:flex;flex-wrap:wrap;gap:10px;margin-top:16px}
+.badge{border:2px dashed var(--todo);color:var(--todo);border-radius:8px;padding:8px 12px;font-size:.85rem;font-weight:600}
+section{padding:36px 0;border-bottom:1px solid var(--line)}
+h2{font-size:1.5rem;margin:0 0 16px}
+h3{font-size:1.08rem;margin:0 0 6px}
+.grid{display:grid;gap:16px;grid-template-columns:1fr}
+@media (min-width:700px){.grid.two{grid-template-columns:1fr 1fr}.grid.three{grid-template-columns:repeat(3,1fr)}}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:18px}
+.card p{margin:0}
+table{width:100%;border-collapse:collapse;font-size:.95rem}
+th,td{text-align:left;padding:8px 6px;border-bottom:1px solid var(--line);vertical-align:top}
+.table-scroll{overflow-x:auto}
+.shot{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px;max-width:420px}
+.shot img{border-radius:8px;width:100%;image-rendering:auto}
+.shot figcaption{margin-top:8px}
+details{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px 16px;margin-bottom:10px}
+summary{cursor:pointer;font-weight:600}
+details p{margin:10px 0 0}
+.todo{color:var(--todo);font-weight:600}
+ul.plain{padding-left:1.2em;margin:0}
+footer{padding:32px 0 48px;color:var(--muted);font-size:.92rem}
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <p class="eyebrow">Nice Dreamz Software · Windows 10 and 11</p>
+    <h1>Speak Anywhere</h1>
+    <p class="pitch">Talk into any app on your PC, or have copied text read back to you, with speech models that run on your own CPU and never touch the internet after setup.</p>
+    <div class="cta">
+      <a class="btn" href="https://github.com/nicedreamzapp/SpeakAnywhere/releases/latest/download/Speak-Anywhere-windows.zip">Download for Windows (free)</a>
+      <a href="https://github.com/nicedreamzapp/SpeakAnywhere/releases/tag/v1.1.0">Version 1.1 release notes</a>
+    </div>
+    <p class="small">First launch downloads about 3 GB of speech models once. No GPU, account or API key needed.</p>
+    <!-- TODO-VERIFY: no App Store or Google Play links exist in the repo. Speak Anywhere is a Windows desktop app.
+         Replace these placeholders with real store links, or delete them if there is no mobile version. -->
+    <div class="badges" aria-label="Store links not yet available">
+      <span class="badge">App Store: TODO-VERIFY</span>
+      <span class="badge">Google Play: TODO-VERIFY</span>
+    </div>
+  </div>
+</header>
+
+<main>
+<section id="what">
+  <div class="wrap">
+    <h2>What it does</h2>
+    <div class="grid three">
+      <div class="card"><h3>Dictate into anything</h3><p>Tap the mic and talk. When you finish a phrase, the words are typed into whatever window has focus: email, a document, a chat box, a form.</p></div>
+      <div class="card"><h3>Hear any text</h3><p>Copy text and tap Speak Clipboard. It starts talking on the first sentence instead of waiting to render the whole thing, at 0.5x, 1x, 1.5x or 2x.</p></div>
+      <div class="card"><h3>Stays on your machine</h3><p>Recognition, voice detection and speech all run locally. After the one-time model download, nothing goes over the network.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="who">
+  <div class="wrap">
+    <h2>Who it's for</h2>
+    <ul class="plain">
+      <li>People who find typing slow, tiring or painful and would rather talk.</li>
+      <li>People who take in text better by listening: long emails, articles, their own drafts read back for proofreading.</li>
+      <li>Anyone who wants dictation and read-aloud without sending their voice or their text to a cloud service.</li>
+      <li>Offline or locked-down PCs where cloud speech tools are not an option.</li>
+    </ul>
+    <p class="small">Note: compatibility with screen readers such as NVDA, JAWS or Narrator has not been tested. <span class="todo">TODO-VERIFY</span></p>
+  </div>
+</section>
+
+<section id="features">
+  <div class="wrap">
+    <h2>Key features</h2>
+    <div class="grid two">
+      <div class="card"><h3>Accurate recognition with punctuation</h3><p>Uses NVIDIA's Parakeet TDT 0.6B v2 model, full precision, which produces sentences with capitals and punctuation on its own. You can still say "period", "comma" or "new line".</p></div>
+      <div class="card"><h3>Ignores room noise</h3><p>Silero voice activity detection decides what is speech, so keyboard clatter and background noise never reach the recognizer.</p></div>
+      <div class="card"><h3>Nothing you say gets dropped</h3><p>Decoding runs on its own thread, so words spoken during a decode are kept. Turning dictation off finishes what is queued first, so your last phrase still lands.</p></div>
+      <div class="card"><h3>15 graded voices</h3><p>Kokoro-82M voices, American and British, limited to the ones Kokoro's own voice list grades A or B. A separate Voice Picker lets you hear each one and keep your favorite.</p></div>
+      <div class="card"><h3>Gapless streaming reader</h3><p>Text is read in chunks that grow as it goes, rendered ahead into a small queue and played through one continuous audio stream. Stop takes effect within 0.2 seconds.</p></div>
+      <div class="card"><h3>Uses your real devices</h3><p>Microphone and speaker menus list only devices Windows can actually open, and start on the ones Windows is already using.</p></div>
+      <div class="card"><h3>Opens fast</h3><p>The window opens while the recognizer loads in the background, and the microphone starts buffering right away so early words are not lost.</p></div>
+      <div class="card"><h3>No settings to tune</h3><p>The app picks its own thread count for your processor, about half the logical cores, limited to between 2 and 8.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="numbers">
+  <div class="wrap">
+    <h2>Measured numbers</h2>
+    <p>From the project README, measured on an 11th-gen Intel Core i7-1185G7 laptop (4 cores, no discrete GPU), comparing the current build to the earlier Vosk-based build.</p>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>What</th><th>Before</th><th>Now</th></tr></thead>
+        <tbody>
+          <tr><td>Window on screen</td><td>129.5 s</td><td>2.6 s</td></tr>
+          <tr><td>Dictation ready</td><td>129.5 s</td><td>about 5 s</td></tr>
+          <tr><td>First word of a long read</td><td>77 s</td><td>1.2 s</td></tr>
+          <tr><td>Memory</td><td>9.6 GB</td><td>2.3 GB</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="small">Your times will vary with your CPU and disk. Text appears after each phrase you finish, not word by word.</p>
+  </div>
+</section>
+
+<section id="screens">
+  <div class="wrap">
+    <h2>Screenshots</h2>
+    <figure class="shot">
+      <img src="../_resources/splash.png" width="320" height="140" alt="Speak Anywhere splash screen">
+      <figcaption class="small">Splash screen, from the app's own resources.</figcaption>
+    </figure>
+    <p class="small"><span class="todo">TODO-VERIFY:</span> the repo has no screenshots of the main window or the Voice Picker. Add PNGs of both before sending this out.</p>
+  </div>
+</section>
+
+<section id="privacy">
+  <div class="wrap">
+    <h2>Privacy</h2>
+    <p>There is no separate privacy policy in the project yet <span class="todo">(TODO-VERIFY: link one if it exists)</span>. This summary describes what the code does.</p>
+    <ul class="plain">
+      <li>Speech recognition, voice detection and text-to-speech run locally on your CPU.</li>
+      <li>The only network use is the first-run download of the speech models from Hugging Face and the sherpa-onnx GitHub releases page.</li>
+      <li>No account, no sign-in, no API key, no analytics code.</li>
+      <li>Audio from your microphone and text from your clipboard are processed in memory and are not uploaded anywhere.</li>
+      <li>On disk it keeps the models in <code>%LOCALAPPDATA%\SpeakAnywhere\models</code> and small settings files, such as your chosen voice, in <code>%APPDATA%\SpeakAnywhere</code>.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="faq">
+  <div class="wrap">
+    <h2>FAQ</h2>
+    <details><summary>Does it need the internet?</summary><p>Only once, the first time it runs, to download about 3 GB of models with a progress bar. After that it runs offline. If the download is cut off, finished files are kept and the one in progress starts over.</p></details>
+    <details><summary>Do I need a graphics card?</summary><p>No. Everything runs on the CPU.</p></details>
+    <details><summary>Is there a Mac, Linux or phone version?</summary><p>No. It is Windows 10 and 11 only.</p></details>
+    <details><summary>Why does Windows say it "protected your PC"?</summary><p>The download is not code-signed yet. Click More info, then Run anyway.</p></details>
+    <details><summary>Does text appear while I'm still talking?</summary><p>No. It transcribes each whole phrase, so text lands a second or two after you finish speaking. That is the tradeoff for the accuracy.</p></details>
+    <details><summary>Can I change the voice?</summary><p>Yes. Open Voice Picker.exe from the same folder, click a voice to hear a sample, then Use this voice. The default is Michael.</p></details>
+    <details><summary>What does it cost?</summary><p>The Windows download is free from the project's GitHub releases page.</p></details>
+  </div>
+</section>
+
+<section id="credits">
+  <div class="wrap">
+    <h2>Built on</h2>
+    <p>Speak Anywhere is the app around these open models and libraries, which are their authors' work: <a href="https://huggingface.co/nvidia/parakeet-tdt-0.6b-v2">NVIDIA Parakeet TDT</a> (speech recognition), <a href="https://huggingface.co/hexgrad/Kokoro-82M">Kokoro-82M</a> (voices), <a href="https://github.com/snakers4/silero-vad">Silero VAD</a> (speech detection), <a href="https://github.com/k2-fsa/sherpa-onnx">sherpa-onnx</a> (runtime), <a href="https://github.com/rhasspy/piper">Piper</a> (alternate voices, source build only), PyAutoGUI, PyAudio, sounddevice, Tkinter, OpenCV and Pygame.</p>
+  </div>
+</section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <p>Speak Anywhere is made by Matt Macosko, Nice Dreamz LLC. Press and questions: <a href="mailto:info@nicedreamzwholesale.com">info@nicedreamzwholesale.com</a></p>
+    <p><a href="https://nicedreamzwholesale.com/software/">More software from Nice Dreamz</a> · <a href="https://github.com/nicedreamzapp/SpeakAnywhere">Source on GitHub</a></p>
+    <p>Copyright 2024 Nice Dreamz LLC. Proprietary software.</p>
+  </div>
+</footer>
+</body>
+</html>
