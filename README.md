@@ -7,7 +7,6 @@
 **💯 Completely offline.** No API keys. No accounts. No cloud.
 **Nothing ever leaves your machine.**
 
-<br>
 
 A Windows desktop app that types what you say into any window and reads copied text aloud,
 using speech models that run on your own CPU.
@@ -15,7 +14,6 @@ using speech models that run on your own CPU.
 **[⬇️ Download for Windows](https://github.com/nicedreamzapp/SpeakAnywhere/releases/latest/download/Speak-Anywhere-windows.zip)**
 · [🔥 Before and after](#-the-big-change-vosk-is-gone) · [📈 Measured numbers](#-performance)
 
-<br>
 
 ![Offline](https://img.shields.io/badge/100%25-OFFLINE-2ea44f?style=for-the-badge)
 ![Windows](https://img.shields.io/badge/Windows-10%20%7C%2011-0078D6?style=for-the-badge&logo=windows&logoColor=white)
@@ -29,93 +27,12 @@ using speech models that run on your own CPU.
 
 </div>
 
-<br>
+<a id="s1"></a>
+<picture><source media="(max-width: 610px), (min-width: 768px) and (max-width: 895px)" srcset="https://raw.githubusercontent.com/nicedreamzapp/SpeakAnywhere/main/assets/readme/s01-banner-m.svg"><source media="(max-width: 1149px)" srcset="https://raw.githubusercontent.com/nicedreamzapp/SpeakAnywhere/main/assets/readme/s01-banner-mid.svg"><img src="https://raw.githubusercontent.com/nicedreamzapp/SpeakAnywhere/main/assets/readme/s01-banner.svg" width="100%" alt="01. What it does. Dictate, listen, stay private"></picture>
+<picture><source media="(max-width: 610px), (min-width: 768px) and (max-width: 895px)" srcset="https://raw.githubusercontent.com/nicedreamzapp/SpeakAnywhere/main/assets/readme/s01-r1-m.svg"><source media="(max-width: 1149px)" srcset="https://raw.githubusercontent.com/nicedreamzapp/SpeakAnywhere/main/assets/readme/s01-r1-mid.svg"><img src="https://raw.githubusercontent.com/nicedreamzapp/SpeakAnywhere/main/assets/readme/s01-r1.svg" width="100%" alt="Dictate. Tap the mic and talk. Your words are typed into whatever window has focus. Listen. Copy any text, tap Speak Clipboard, hear it in a natural neural voice. Stay private. Every model runs locally. After the one-time model download, nothing goes over the network."></picture>
 
----
-
-## 📑 Contents
-
-<table>
-<tr>
-<td valign="top" width="33%">
-
-**🚀 Start here**
-- [⚡ What it does](#-what-it-does)
-- [👤 What I built](#-what-i-built)
-- [⬇️ Download](#️-download-windows-10-and-11)
-- [📦 Setup from source](#-setup-from-source)
-- [🎛️ Using it](#️-using-it)
-- [🚧 Known limits](#-known-limits)
-
-</td>
-<td valign="top" width="33%">
-
-**🔬 What changed**
-- [🔥 Vosk is gone](#-the-big-change-vosk-is-gone)
-- [📊 Speed & memory](#-and-it-got-dramatically-faster)
-- [🗣️ The voice](#️-the-voice)
-
-</td>
-<td valign="top" width="33%">
-
-**🛠️ Under the hood**
-- [🔊 How the reader works](#-how-the-reader-actually-works)
-- [⚙️ How dictation works](#️-how-dictation-actually-works)
-- [📈 Performance](#-performance)
-- [📁 Structure](#-project-structure)
-- [🔨 Building the download](#-building-the-download)
-- [🙏 Built on](#-built-on)
-
-</td>
-</tr>
-</table>
-
-<br>
-
----
-
-## ⚡ What it does
-
-<table>
-<tr>
-<td align="center" width="33%">
-
-### 🎤
-### **Dictate**
-
-Tap the mic and talk.
-Your words are **typed into
-whatever window has focus.**
-
-</td>
-<td align="center" width="33%">
-
-### 🔊
-### **Listen**
-
-Copy any text, tap
-**Speak Clipboard**, hear it
-in a natural neural voice.
-
-</td>
-<td align="center" width="33%">
-
-### 🔒
-### **Stay private**
-
-Every model runs locally.
-After the one-time model
-download, **nothing goes
-over the network.**
-
-</td>
-</tr>
-</table>
-
-<br>
-
----
-
+<a id="-what-it-does"></a>
+<a id="-what-i-built"></a>
 ## 👤 What I built
 
 Speak Anywhere is written by **Matt Macosko**. The speech models and runtime are upstream
@@ -132,10 +49,14 @@ projects (see [Built on](#-built-on)); the app around them is this repo:
 The recognizer (NVIDIA Parakeet), voices (Kokoro-82M, Piper), speech detector (Silero VAD)
 and runtime (sherpa-onnx) are not mine.
 
-<br>
+<img src="https://raw.githubusercontent.com/nicedreamzapp/SpeakAnywhere/main/assets/readme/s01-rule.svg" width="100%" alt="">
 
----
+<a id="s2"></a>
+<picture><source media="(max-width: 610px), (min-width: 768px) and (max-width: 895px)" srcset="https://raw.githubusercontent.com/nicedreamzapp/SpeakAnywhere/main/assets/readme/s02-banner-m.svg"><source media="(max-width: 1149px)" srcset="https://raw.githubusercontent.com/nicedreamzapp/SpeakAnywhere/main/assets/readme/s02-banner-mid.svg"><img src="https://raw.githubusercontent.com/nicedreamzapp/SpeakAnywhere/main/assets/readme/s02-banner.svg" width="100%" alt="02. The big change: Vosk is gone. Before and after, measured"></picture>
+<picture><source media="(max-width: 610px), (min-width: 768px) and (max-width: 895px)" srcset="https://raw.githubusercontent.com/nicedreamzapp/SpeakAnywhere/main/assets/readme/s02-r1-m.svg"><source media="(max-width: 1149px)" srcset="https://raw.githubusercontent.com/nicedreamzapp/SpeakAnywhere/main/assets/readme/s02-r1-mid.svg"><img src="https://raw.githubusercontent.com/nicedreamzapp/SpeakAnywhere/main/assets/readme/s02-r1.svg" width="100%" alt="2.6 s time to window, was 129.5 s. 1.2 s first word of a long read, was 77 s. 2.3 GB memory, was 9.6 GB."></picture>
 
+<a id="-the-big-change-vosk-is-gone"></a>
+<a id="-and-it-got-dramatically-faster"></a>
 ## 🔥 The big change: Vosk is gone
 
 <table>
@@ -168,7 +89,6 @@ Vosk is built on **Kaldi**, and that generation of recognizer has simply been ov
 to Vosk's *most accurate* English model didn't fix it either — it just pushed cold start to
 **35 seconds**.
 
-<br>
 
 ### 📊 And it got dramatically faster
 
@@ -198,12 +118,13 @@ to Vosk's *most accurate* English model didn't fix it either — it just pushed 
 > The `77 s` above was a **2,500 character** paste. It is not a typo: the old reader rendered the
 > **entire** clipboard to a WAV before playing a single word, so the silence scaled with the text.
 
-<br>
+<img src="https://raw.githubusercontent.com/nicedreamzapp/SpeakAnywhere/main/assets/readme/s02-rule.svg" width="100%" alt="">
 
----
+<a id="s3"></a>
+<picture><source media="(max-width: 610px), (min-width: 768px) and (max-width: 895px)" srcset="https://raw.githubusercontent.com/nicedreamzapp/SpeakAnywhere/main/assets/readme/s03-banner-m.svg"><source media="(max-width: 1149px)" srcset="https://raw.githubusercontent.com/nicedreamzapp/SpeakAnywhere/main/assets/readme/s03-banner-mid.svg"><img src="https://raw.githubusercontent.com/nicedreamzapp/SpeakAnywhere/main/assets/readme/s03-banner.svg" width="100%" alt="03. The voice. Kokoro-82M, and how to pick one"></picture>
+<picture><source media="(max-width: 610px), (min-width: 768px) and (max-width: 895px)" srcset="https://raw.githubusercontent.com/nicedreamzapp/SpeakAnywhere/main/assets/readme/s03-r1-m.svg"><source media="(max-width: 1149px)" srcset="https://raw.githubusercontent.com/nicedreamzapp/SpeakAnywhere/main/assets/readme/s03-r1-mid.svg"><img src="https://raw.githubusercontent.com/nicedreamzapp/SpeakAnywhere/main/assets/readme/s03-r1.svg" width="100%" alt="Kokoro-82M. Runs through sherpa-onnx, which was already a dependency. Piper stays. Still available, source-only. Voice picker. Audition voices and keep one."></picture>
 
-## 🗣️ The voice
-
+<a id="️-the-voice"></a>
 Text-to-speech used to be **Piper** on `en_US-hfc_male-medium`. Small, fast, and **audibly
 synthetic** on anything longer than a sentence.
 
@@ -224,7 +145,6 @@ was **already a dependency**, so this added **zero** new ones.
 Piper **stays available** rather than deleted. A few of its voices hold up fine. It is
 source-only: the Windows download leaves Piper out, and its voice files are not in this repo.
 
-<br>
 
 ### 🎚️ Picking one
 
@@ -245,12 +165,14 @@ Until you pick one, it reads in **Michael** (`am_michael`).
 > ✅ **What's left: 15 English voices at grade A or B, plus 3 Piper voices.**
 > The point is to *pick* a voice, not to audition a pile of bad ones.
 
-<br>
+<img src="https://raw.githubusercontent.com/nicedreamzapp/SpeakAnywhere/main/assets/readme/s03-rule.svg" width="100%" alt="">
 
----
+<a id="s4"></a>
+<picture><source media="(max-width: 610px), (min-width: 768px) and (max-width: 895px)" srcset="https://raw.githubusercontent.com/nicedreamzapp/SpeakAnywhere/main/assets/readme/s04-banner-m.svg"><source media="(max-width: 1149px)" srcset="https://raw.githubusercontent.com/nicedreamzapp/SpeakAnywhere/main/assets/readme/s04-banner-mid.svg"><img src="https://raw.githubusercontent.com/nicedreamzapp/SpeakAnywhere/main/assets/readme/s04-banner.svg" width="100%" alt="04. How it works. The reader and the dictation loop"></picture>
+<picture><source media="(max-width: 610px), (min-width: 768px) and (max-width: 895px)" srcset="https://raw.githubusercontent.com/nicedreamzapp/SpeakAnywhere/main/assets/readme/s04-r1-m.svg"><source media="(max-width: 1149px)" srcset="https://raw.githubusercontent.com/nicedreamzapp/SpeakAnywhere/main/assets/readme/s04-r1-mid.svg"><img src="https://raw.githubusercontent.com/nicedreamzapp/SpeakAnywhere/main/assets/readme/s04-r1.svg" width="100%" alt="Reader. Starts talking on the first sentence. Dictation. Silero decides what is speech, decoding runs off the audio thread. Nothing lost. Switching dictation off drains the queue first."></picture>
 
-## 🔊 How the reader actually works
-
+<a id="-how-the-reader-actually-works"></a>
+<a id="️-how-dictation-actually-works"></a>
 It **starts talking on the first sentence** instead of rendering the whole clipboard first.
 
 <div align="center">
@@ -286,9 +208,7 @@ rendered while earlier audio is still playing.
 > 🎯 **Measured on a 2 minute read: no gap at all.** `1.2 s` to the first word, and the renderer
 > stayed ahead of the listener for the remaining `128 s` of audio.
 
-<br>
 
----
 
 ## ⚙️ How dictation actually works
 
@@ -349,12 +269,13 @@ The last thing you said before hitting the button **still lands**.
 > That is the **cost of the accuracy** — and the reason the dictation loop was rewritten rather
 > than just repointed at a new model file.
 
-<br>
+<img src="https://raw.githubusercontent.com/nicedreamzapp/SpeakAnywhere/main/assets/readme/s04-rule.svg" width="100%" alt="">
 
----
+<a id="s5"></a>
+<picture><source media="(max-width: 610px), (min-width: 768px) and (max-width: 895px)" srcset="https://raw.githubusercontent.com/nicedreamzapp/SpeakAnywhere/main/assets/readme/s05-banner-m.svg"><source media="(max-width: 1149px)" srcset="https://raw.githubusercontent.com/nicedreamzapp/SpeakAnywhere/main/assets/readme/s05-banner-mid.svg"><img src="https://raw.githubusercontent.com/nicedreamzapp/SpeakAnywhere/main/assets/readme/s05-banner.svg" width="100%" alt="05. Performance. Measured on an 11th-gen Core i7-1185G7"></picture>
+<picture><source media="(max-width: 610px), (min-width: 768px) and (max-width: 895px)" srcset="https://raw.githubusercontent.com/nicedreamzapp/SpeakAnywhere/main/assets/readme/s05-r1-m.svg"><source media="(max-width: 1149px)" srcset="https://raw.githubusercontent.com/nicedreamzapp/SpeakAnywhere/main/assets/readme/s05-r1-mid.svg"><img src="https://raw.githubusercontent.com/nicedreamzapp/SpeakAnywhere/main/assets/readme/s05-r1.svg" width="100%" alt="2.6 s window on screen. 1.2 s first word of a read. 1.9x decode at 4 threads."></picture>
 
-## 📈 Performance
-
+<a id="-performance"></a>
 Measured on an **11th-gen Core i7-1185G7** — 4 cores, no discrete GPU:
 
 <div align="center">
@@ -380,12 +301,15 @@ Measured on an **11th-gen Core i7-1185G7** — 4 cores, no discrete GPU:
 > The app derives its own thread count — roughly half the logical processors, clamped to **2–8** —
 > so there is **nothing to configure** and nothing tuned to one machine.
 
-<br>
+<img src="https://raw.githubusercontent.com/nicedreamzapp/SpeakAnywhere/main/assets/readme/s05-rule.svg" width="100%" alt="">
 
----
+<a id="s6"></a>
+<picture><source media="(max-width: 610px), (min-width: 768px) and (max-width: 895px)" srcset="https://raw.githubusercontent.com/nicedreamzapp/SpeakAnywhere/main/assets/readme/s06-banner-m.svg"><source media="(max-width: 1149px)" srcset="https://raw.githubusercontent.com/nicedreamzapp/SpeakAnywhere/main/assets/readme/s06-banner-mid.svg"><img src="https://raw.githubusercontent.com/nicedreamzapp/SpeakAnywhere/main/assets/readme/s06-banner.svg" width="100%" alt="06. Download, setup and use. Windows installer, source setup, voice commands"></picture>
+<picture><source media="(max-width: 610px), (min-width: 768px) and (max-width: 895px)" srcset="https://raw.githubusercontent.com/nicedreamzapp/SpeakAnywhere/main/assets/readme/s06-r1-m.svg"><source media="(max-width: 1149px)" srcset="https://raw.githubusercontent.com/nicedreamzapp/SpeakAnywhere/main/assets/readme/s06-r1-mid.svg"><img src="https://raw.githubusercontent.com/nicedreamzapp/SpeakAnywhere/main/assets/readme/s06-r1.svg" width="100%" alt="Windows 10 and 11. Download the zip, unzip, run Speak Anywhere.exe. About 3 GB. One-time model download on first run, with a progress bar. Python 3.11. For setup from source."></picture>
 
-## ⬇️ Download (Windows 10 and 11)
-
+<a id="️-download-windows-10-and-11"></a>
+<a id="-setup-from-source"></a>
+<a id="️-using-it"></a>
 **[Download Speak Anywhere for Windows](https://github.com/nicedreamzapp/SpeakAnywhere/releases/latest/download/Speak-Anywhere-windows.zip)**
 
 Unzip it, open the **Speak Anywhere** folder and run **Speak Anywhere.exe**. The first time, it
@@ -395,9 +319,7 @@ downloads its speech model and voices once (about **3 GB**, with a progress bar)
 
 If Windows shows a blue "protected your PC" box, click **More info**, then **Run anyway**.
 
-<br>
 
----
 
 ## 📦 Setup from source
 
@@ -418,7 +340,6 @@ The steps below fetch them by hand. If you skip them, the app downloads the same
 <details>
 <summary><b>🎧 &nbsp;Download the speech recognizer</b> &nbsp;·&nbsp; <code>2.5 GB</code></summary>
 
-<br>
 
 ```bash
 mkdir -p _resources/parakeet-tdt-0.6b-v2
@@ -443,7 +364,6 @@ quantization is the first thing that erodes it.
 <details>
 <summary><b>🧠 &nbsp;Download the voice activity detector</b> &nbsp;·&nbsp; <code>630 KB</code></summary>
 
-<br>
 
 ```bash
 cd _resources
@@ -455,7 +375,6 @@ curl -LO https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sile
 <details>
 <summary><b>🗣️ &nbsp;Download the text-to-speech voices</b> &nbsp;·&nbsp; <code>350 MB</code></summary>
 
-<br>
 
 ```bash
 cd _resources
@@ -469,7 +388,6 @@ tar -xjf kokoro-multi-lang-v1_0.tar.bz2 && rm kokoro-multi-lang-v1_0.tar.bz2
 
 </details>
 
-<br>
 
 ▶️ **Then run it:**
 
@@ -477,9 +395,7 @@ tar -xjf kokoro-multi-lang-v1_0.tar.bz2 && rm kokoro-multi-lang-v1_0.tar.bz2
 python speak_anywhere.py
 ```
 
-<br>
 
----
 
 ## 🎛️ Using it
 
@@ -510,12 +426,16 @@ python speak_anywhere.py
 > ✨ Parakeet emits **real punctuation on its own**, so these are mostly a holdover for when you
 > want to be explicit.
 
-<br>
+<img src="https://raw.githubusercontent.com/nicedreamzapp/SpeakAnywhere/main/assets/readme/s06-rule.svg" width="100%" alt="">
 
----
+<a id="s7"></a>
+<picture><source media="(max-width: 610px), (min-width: 768px) and (max-width: 895px)" srcset="https://raw.githubusercontent.com/nicedreamzapp/SpeakAnywhere/main/assets/readme/s07-banner-m.svg"><source media="(max-width: 1149px)" srcset="https://raw.githubusercontent.com/nicedreamzapp/SpeakAnywhere/main/assets/readme/s07-banner-mid.svg"><img src="https://raw.githubusercontent.com/nicedreamzapp/SpeakAnywhere/main/assets/readme/s07-banner.svg" width="100%" alt="07. Limits, structure, credits and license. What it does not do, where things live, who it builds on"></picture>
+<picture><source media="(max-width: 610px), (min-width: 768px) and (max-width: 895px)" srcset="https://raw.githubusercontent.com/nicedreamzapp/SpeakAnywhere/main/assets/readme/s07-r1-m.svg"><source media="(max-width: 1149px)" srcset="https://raw.githubusercontent.com/nicedreamzapp/SpeakAnywhere/main/assets/readme/s07-r1-mid.svg"><img src="https://raw.githubusercontent.com/nicedreamzapp/SpeakAnywhere/main/assets/readme/s07-r1.svg" width="100%" alt="Windows only. It uses pywin32, winshell and %APPDATA%. Text lands per phrase. Not word by word. Proprietary. Copyright Nice Dreamz LLC, see LICENSE.txt."></picture>
 
-## 🚧 Known limits
-
+<a id="-known-limits"></a>
+<a id="-project-structure"></a>
+<a id="-building-the-download"></a>
+<a id="-built-on"></a>
 - 🪟 **Windows only.** It uses `pywin32`, `winshell` and `%APPDATA%`; there is no Mac or Linux build.
 - ⏳ **Text lands after each phrase**, not word by word (see the tradeoff above).
 - 🌐 **The first run needs internet** for the one-time ~3 GB model download. Files that finished
@@ -524,9 +444,7 @@ python speak_anywhere.py
 - ↩️ **Saying "new line" presses Enter and drops the rest of that phrase.**
 - 🛡️ **The download is not code-signed**, which is why Windows shows the "protected your PC" box.
 
-<br>
 
----
 
 ## 📁 Project structure
 
@@ -552,9 +470,7 @@ SpeakAnywhere/
     └── 🔈 piper/                    optional alternate voices
 ```
 
-<br>
 
----
 
 ## 🔨 Building the download
 
@@ -565,9 +481,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File build-windows.ps1
 It builds in its own clean environment and writes `dist\Speak-Anywhere-windows.zip`: one folder
 with **Speak Anywhere.exe** and **Voice Picker.exe**. The models are left out and fetched on first run.
 
-<br>
 
----
 
 ## 🙏 Built on
 
@@ -589,9 +503,7 @@ with **Speak Anywhere.exe** and **Voice Picker.exe**. The models are left out an
 
 [**CREDITS.md**](CREDITS.md) also credits tools earlier versions used (Vosk, edge-tts).
 
-<br>
 
----
 
 <div align="center">
 
@@ -600,15 +512,15 @@ with **Speak Anywhere.exe** and **Voice Picker.exe**. The models are left out an
 Copyright © 2024 **Nice Dreamz LLC**. All Rights Reserved.
 Proprietary software — see [**LICENSE.txt**](LICENSE.txt).
 
-<br>
 
 ### 👤 Author
 
 **Matt Macosko** · Nice Dreamz LLC
 [info@nicedreamzwholesale.com](mailto:info@nicedreamzwholesale.com)
 
-<br>
 
 ![Made offline](https://img.shields.io/badge/Made%20to%20run-entirely%20offline-2ea44f?style=for-the-badge)
 
 </div>
+
+<img src="https://raw.githubusercontent.com/nicedreamzapp/SpeakAnywhere/main/assets/readme/s07-rule.svg" width="100%" alt="">
